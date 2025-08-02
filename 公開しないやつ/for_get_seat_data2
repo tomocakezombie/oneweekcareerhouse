@@ -1,0 +1,160 @@
+#!/usr/bin/python3
+
+"""
+file: for_get_seat_data2(/home/t23cs014/bin)
+
+note        保坂先輩作スクリプトを一週間キャリアハウス用に変更する予定
+            適時変更していく
+            t23cs014のlwwホームページ用
+
+"""
+
+# 端末の定義
+hostname = []
+hostname += (["aw"+str(i).zfill(2)for i in range(1,7)])
+hostname += (["bw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["cw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["dw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["ew"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["fw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["gw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["hw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["iw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["jw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["kw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["lw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["mw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["nw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["zw"+str(i).zfill(2)for i in range(1,4)])
+
+import os
+import threading
+import sys
+import subprocess
+import time
+import argparse
+import re
+
+parser = argparse.ArgumentParser(description='キャリアハウス：一週間チャンネルのスクリプト')
+
+# 引数を追加
+parser.add_argument('-t', '--thread', help='ssh先で実行させる際に使用するオプション予定', action='store_true') # store_trueは引数があるか否かでtrue/falseを表すようにするやつ
+# parser.add_argument('-h', '--help', help='コマンドの詳細説明をするよ')
+
+args = parser.parse_args()
+
+
+proclist = [] # 実行しているプロセスIDを保存
+result = [] # 実行結果を保存
+
+def get_last_data():
+    global result
+    proc = subprocess.Popen(["last --time-format=iso"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        temp = [] 
+        temp.append("Update Time : " + time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()) + "\n")     
+        # 標準出力を一行ずつ表示
+        for i, line in enumerate(proc.stdout):
+            
+            # 空白をカンマに置換する予定
+            line = re.sub('\t', ' ', line) # タブを空白に置換
+            line = re.sub(' +', ' ', line).strip() # 複数の空白を１つの空白に置換
+
+            # デバッグ用書き出し
+            # with open("/home/t23cs014/local_html/seat/公開しないやつ/debug.txt","w", encoding="utf-8") as f:
+            #     f.write(line)
+
+            parts = line.split(" ")
+
+            # if len(parts) < 4: # 3つ以上の要素がない場合はスキップ
+            #     continue
+
+            if ":" in parts[1] and not "tty" in parts[1]: # 実機か否かの判別処理 適時変更
+                continue
+            
+            temp.append(parts[3] + " " + "\n")
+        result.append("".join(temp))
+            
+    except Exception as e:
+        print(e) 
+
+    finally:
+        proc.terminate() # 子プロセスを終了
+        proc.wait() # 子プロセル終了まで待つ
+
+def ssh(hostname, i):
+    after_ssh_command = "for_get_seat_data2 -t"  # ssh接続後に実行するコマンド
+    ssh_cmd = ["ssh", "-o", "BatchMode=yes", hostname, after_ssh_command]
+    while True:
+        try:
+            print("ssh " + hostname + " " + after_ssh_command)
+            proc = subprocess.Popen(ssh_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            print("ssh " + hostname + " " + after_ssh_command + " start")
+            # 標準出力が終了するまで読み込み
+            while True:
+                line = proc.stdout.readline()
+                if not line:
+                    break
+                print(line.strip())
+                
+            # 終了コードをチェックしてエラーなら待機してリトライ
+            retcode = proc.wait()
+            if retcode != 0:
+                err = proc.stderr.read()
+                print(f"SSH Error on {hostname}: {err}")
+                time.sleep(5)
+        except Exception as e:
+            print(f"Exception on SSH to {hostname}: {e}")
+            time.sleep(5)
+        finally:
+            try:
+                proc.terminate()
+            except Exception:
+                pass
+
+
+
+
+# 全体処理
+def collection():
+    ppid = int(os.getppid())
+    lock = []
+
+    i = 0
+    th=[]
+    for host in hostname:
+        lock.append(threading.Lock())
+        th.append(threading.Thread(target=ssh,args=(host,i,lock[i],),daemon=True)) # ssh関数の実行結果をthに格納
+        th[i].start()
+        i += 1
+    
+    def clean():
+        for p in proclist:
+            try:
+                p.terminate()
+                p.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                print(f"Process {p.pid} timed out")
+                p.kill()
+
+        sys.exit(0)
+
+    def signal_handler(sig, frame):
+        clean()
+        
+def main():
+    if args.thread: # threadオプション時の処理
+        print("threadオプション")
+        get_last_data()
+
+    else:
+        th = threading.Thread(target=ssh, args=("zw03",1), daemon=True)
+        th.start()
+        # while True:
+        #     for result_str in result:
+        #         with open("/home/t23cs014/local_html/seat/公開しないやつ/last_result.txt","w", encoding="utf-8") as f:
+        #             f.write(result_str)
+        #         # print(result)
+        #         time.sleep(5)
+
+main()

@@ -1,0 +1,29 @@
+#!/usr/bin/python3
+
+import subprocess
+import os
+
+result = []
+
+def ssh(hostname, i):
+    global result
+    # result += subprocess.run(["ssh " + hostname] , capture_output=True, text=True)
+    # result.append(subprocess.run(["ssh", hostname, "yes"], capture_output=True, text=True))
+    proc = subprocess.Popen(["ssh", hostname, "yes"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        for i, line in enumerate(proc.stdout):
+            print(line.strip())
+            if i >= 4:
+                break
+    finally:
+        proc.terminate() # 子プロセスを終了
+        proc.wait() # 子プロセル終了まで待つ
+        
+def main():
+    ssh("zw03", 1)
+    # while True:
+    #     print(result)
+    print(result)
+
+main()
+    

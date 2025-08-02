@@ -1,0 +1,234 @@
+C:\Users\tomot>curl http://file.ast.kki.yamanashi.ac.jp/ -v -k -L
+* Host file.ast.kki.yamanashi.ac.jp:80 was resolved.
+* IPv6: (none)
+* IPv4: 192.168.181.2
+*   Trying 192.168.181.2:80...
+* Connected to file.ast.kki.yamanashi.ac.jp (192.168.181.2) port 80
+* using HTTP/1.x
+> GET / HTTP/1.1
+> Host: file.ast.kki.yamanashi.ac.jp
+> User-Agent: curl/8.11.1
+> Accept: */*
+>
+* Request completely sent off
+< HTTP/1.1 301 Moved Permanently
+< Content-Type: text/plain; charset=utf-8
+< location: https://file.ast.kki.yamanashi.ac.jp/
+* no chunk, no close, no size. Assume close to signal end
+<
+* shutting down connection #0
+* Clear auth, redirects to port from 80 to 443
+* Issue another request to this URL: 'https://file.ast.kki.yamanashi.ac.jp/'
+* Host file.ast.kki.yamanashi.ac.jp:443 was resolved.
+* IPv6: (none)
+* IPv4: 192.168.181.2
+*   Trying 192.168.181.2:443...
+* schannel: disabled automatic use of client certificate
+* ALPN: curl offers http/1.1
+* ALPN: server did not agree on a protocol. Uses default.
+* Connected to file.ast.kki.yamanashi.ac.jp (192.168.181.2) port 443
+* using HTTP/1.x
+> GET / HTTP/1.1
+> Host: file.ast.kki.yamanashi.ac.jp
+> User-Agent: curl/8.11.1
+> Accept: */*
+>
+* schannel: remote party requests renegotiation
+* schannel: renegotiating SSL/TLS connection
+* schannel: SSL/TLS connection renegotiated
+* schannel: remote party requests renegotiation
+* schannel: renegotiating SSL/TLS connection
+* schannel: SSL/TLS connection renegotiated
+* Request completely sent off
+< HTTP/1.1 200 OK
+< Accept-Ranges: bytes
+< Accept-Language: ja
+< Content-Type: text/html; charset=utf-8
+< content-length: 9776
+<
+<!DOCTYPE html>
+<html>
+        <head>
+                <meta charset="utf-8"></meta>
+                <title>ログイン</title>
+                <script type="text/javascript" src="sha256.js?weblib=true"></script>
+                <script>
+
+                        function hashed(str){
+                                var SHA_OBJ = new jsSHA("SHA-256","TEXT");
+                                SHA_OBJ.update(str);
+                                return SHA_OBJ.getHash("HEX");
+                        }
+
+                        function send_user_info(){
+                                let user_name=document.getElementById("user_name");
+                                let user_password=document.getElementById("user_password");
+                                var user=user_name.value;
+                                if(user=="") user = "guest";
+                                //var user=hashed(user);
+                                //console.log("user = "+user);
+                                var password=user_password.value;
+                                //var password=hashed(user_password.value);
+                                //password = hashed(password+magic_word);
+                                //console.log("password2 = "+password);
+                                user_check(user,password,magic_word);
+                        }
+                        function cancel_user_info(){
+                                let user_info = document.getElementById("user_info");
+                                user_info.style.display = "none";
+                                document.body.childNodes[0].data = "connection denied.";
+                        }
+
+                        function user_check(arg1,arg2,arg3){
+                                var xhr_post=new XMLHttpRequest();
+                                xhr_post.addEventListener("load",function(e){
+                                        if(xhr_post.readyState==4){
+                                                if(xhr_post.status==200){
+                                                        //console.log(xhr_post.responseText); // デバッグ用
+                                                        if(xhr_post.responseText=="ok"){
+                                                                var urlParams = new URLSearchParams(window.location.search); // URLパラメータ取得
+                                        var pre_url = urlParams.get("pre_url"); // 前のURL取得
+                                        if(pre_url){ // 前のURLが存在する場合
+                                        window.location.href = pre_url; // リダイレクト
+                                        }else{ // 前のURLが存在しない場合
+                                        location.reload(); // 再読み込み
+                                        }
+                                                        }else{
+                                                                alert("ユーザ情報が間違っています．");
+                                                        }
+                                                }else{
+                                                        alert("ユーザ情報が間違っています．");
+                                                        location.reload(); // 再読み込み
+                                                }
+                                        }else{
+                                                alert("ユーザ情報が間違っています．");
+                                                location.reload(); // 再読み込み
+                                        }
+                                });
+                                xhr_post.open("POST","/check",true);
+                                xhr_post.setRequestHeader("content-type","text; charset=UTF-8");
+                                xhr_post.send("user_name="+arg1+"&user_password="+arg2+"&magic_word="+arg3);
+                        }
+
+                        window.document.onkeydown = function(e){ // キーが押された時
+                                var send_button=document.getElementById("send_button");
+                                if(document.activeElement!=send_button){
+                                        if(e.key=="Enter"){ // Enterが押された時
+                                                send_user_info(); // ログイン認証開始
+                                        }
+                                }
+                        }
+
+                        window.onload = function(){
+                                var xhr_get=new XMLHttpRequest();
+                                xhr_get.addEventListener("load",function(e){
+                                        if(xhr_get.readyState==4){
+                                                if(xhr_get.status==200){
+                                                        // console.log(xhr_get.responseText); // デバッグ用
+                                                        if(xhr_get.responseText!=""){
+                                                                // cookieの設定はブラウザに任せるように変更，ここではマジックワードを取得することのみに限定
+                                                                //document.cookie = xhr_get.responseText.split(";")[0]+"; SameSite=None; Secure"; // SameSiteをNoneにするとGET，POSTメソッド関わらずCoockieを送信するが，HTTPS(Secure属性)を使用しなければならない制約がある
+                                                                //document.cookie = xhr_get.responseText.split(";")[0]; // SameSite変数を設定しないとFirefoxではCookieを本当に渡していいか判断できないため警告が出る．
+                                                                magic_word = xhr_get.responseText.split(";")[1];
+                                                        }
+                                                }else if(xhr_get.status==201){
+                                                        //console.log(xhr_get.responseText); // デバッグ用
+                                                        if(xhr_get.responseText!=""){
+                                                                magic_word = xhr_get.responseText;
+                                                        }
+                                                }
+                                        }else{
+                                             xhr_get.send("");
+                                        }
+                                });
+                                xhr_get.open("GET","/exist",true);
+                                xhr_get.setRequestHeader("content-type","text; charset=UTF-8");
+                                xhr_get.send("");
+                        }
+                </script>
+        </head>
+        <body>
+
+                <form id="user_info">
+                        <div class="tframe">
+                                <span class="tframe_title" style="color: #77aaff;background-color:rgb(243,255,253);">&#x1F4CC;ログイン認証</span>
+                                <div class="tframe_content">
+                                        <span style="font-size:25px;">ログインページ</span><br><br>
+                                        ユーザ名を入力してください．<br>
+                                        <input id="user_name" type="text" value=""></input><br>
+                                        パスワードを入力して下さい．<br>
+                                        <input id="user_password" type="password" autocomplete="off" value=""></input><br><br>
+                                        <div style="text-align:center;">
+                                                <input id="send_button" type="button" value="送信" style="background-color:blue; color:white;width:150px;" onclick="send_user_info()"></input>
+                                                <input type="button" value="キャンセル" style="width:150px;" onclick="cancel_user_info()"></input>
+                                        </div>
+                                </div>
+                        </div>
+                </form>
+
+                <script>
+                        var tframes = document.getElementsByClassName("tframe"); // タグフレーム追加
+                        for(let i=0;i<tframes.length;i++){ // タグフレームの個数分処理
+                                var tframe = tframes[i]; // タグフレーム取得
+                                tframe.focusIdx = 0; // 焦点フレーム初期化
+                                tframe.style = "position: relative;margin: 2em auto;padding: 1.5em;width: 80%;top: 50px;color: #000000;background-color: #fff;border: 5px solid #cccccc;box-shadow: 5px 4px 5px #ccc;"; // スタイル初期化
+                                tags = tframe.getElementsByClassName("tframe_title"); // タグ群取得
+                                var tagWidth = 88.0/tags.length; // 1つのタグの幅
+                                console.log(tagWidth);
+                                for(let j=0;j<tags.length;j++){ // タグの種類分処理
+                                        var tag = tags[j]; // タグ取得
+                                        tag.idx = j; // インデックス格納
+                                        tag.focusColor = tag.style.color; // フォーカス時の文字色指定
+                                        tag.focusBackgroundColor = tag.style.backgroundColor; // フォーカス時の色設定
+                                        tag.style = "position: absolute;padding-left: 20px;top: -55px;font-size: 30px;font-weight: bold;border-top-left-radius: 0.2em;border-top-right-radius: 0.8em;color: #cccccc;border:solid 5px #cccccc;border-bottom:none;white-space: nowrap;overflow-x:hidden;"; // タグスタイル初期化
+                                        if(j==0) tag.style.left = ""+((tagWidth)*j+0.5)+"%"; // オフセット指定
+                                        else tag.style.left = ""+((tagWidth)*j+6.0)+"%"; // オフセット指定
+                                        tag.style.width = ""+tagWidth+"%"; // 幅指定
+                                        if(j!=tframe.focusIdx){ // タグがフォーカスされていない場合
+                                                tag.style.backgroundColor = "rgb(255,255,255)"; // デフォルト白設定
+                                                tag.style.zIndex = tags.length-tag.idx-1; // 奥行き指定
+                                                tframe.getElementsByClassName("tframe_content")[tag.idx].style.display = "none"; // 子要素非表示
+                                        }else{ // フォーカスされている場合
+                                                tag.style.top = "-50px"; // 座標変更
+                                                tag.style.color = tag.focusColor; // 文字色設定
+                                                tag.style.backgroundColor = tag.focusBackgroundColor; // 背景色設定
+                                                tag.style.zIndex = tags.length;; // 最前面へ
+                                                console.log(tframe.getElementsByClassName("tframe_content"));
+                                                tframe.getElementsByClassName("tframe_content")[tag.idx].style.display = "block"; // 子要素表示
+                                        }
+                                        tag.addEventListener("mouseover",function(event){
+                                                if(event.target.idx==event.target.parentElement.focusIdx) return; // 既にフォーカスされている場合リターン
+                                                event.target.style.color = event.target.focusColor; // 文字色設定
+                                                event.target.style.backgroundColor = event.target.focusBackgroundColor; // 背景指定
+                                        });
+                                        tag.addEventListener("mouseout",function(event){
+                                                if(event.target.idx==event.target.parentElement.focusIdx) return; // 既にフォーカスされている場合リターン
+                                                event.target.style.color = "#cccccc"; // 文字色設定
+                                                event.target.style.backgroundColor = "rgb(255,255,255)"; // 背景指定
+                                        });
+                                        tag.addEventListener("click",function(event){
+                                                if(event.target.idx==event.target.parentElement.focusIdx) return; // 既にフォーカスされている場合リターン
+                                                var focusElement = event.target.parentElement.getElementsByClassName("tframe_title")[event.target.parentElement.focusIdx];
+                                                console.log(event.target.parentElement);
+                                                focusElement.style.color = "#cccccc"; // 文字色設定
+                                                focusElement.style.top = "-55px"; // 座標変更
+                                                focusElement.style.zIndex = event.target.parentElement.getElementsByClassName("tframe_title").length-focusElement.idx-1; // 奥行き指定
+                                                focusElement.style.backgroundColor = "rgb(255,255,255)"; // 背景指定
+                                                event.target.parentElement.getElementsByClassName("tframe_content")[focusElement.idx].style.display = "none"; // 子要素非表示
+                                                event.target.style.top = "-50px"; // 座標変更
+                                                event.target.style.zIndex = event.target.parentElement.getElementsByClassName("tframe_title").length; // 奥行き指定
+                                                event.target.style.color = event.target.focusColor; // 文字色設定
+                                                event.target.style.backgroundColor = event.target.focusBackgroundColor; // 背景指定
+                                                event.target.parentElement.style.backgroundColor = event.target.focusBackgroundColor; // 背景切り替え
+                                                event.target.parentElement.getElementsByClassName("tframe_content")[event.target.idx].style.display = "block"; // 子要素表示
+                                                event.target.parentElement.focusIdx = event.target.idx; // 焦点切り替え
+                                        });
+                                }
+                                tframe.style.backgroundColor = tags[tframe.focusIdx].focusBackgroundColor; // フレーム背景色設定
+                        }
+                </script>
+        </body>
+</html>
+* Connection #1 to host file.ast.kki.yamanashi.ac.jp left intact
+
+C:\Users\tomot>
