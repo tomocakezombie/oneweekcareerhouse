@@ -12,7 +12,38 @@ document.addEventListener("DOMContentLoaded", function() {// DOMの読み込み�
 
     // インターバルで常に実行
     setInterval(fetchData, 5000);// 5秒ごとにfetchDataを実行
+
+  // ランキング表示
+  fetchAndDisplayRanking();
 });
+// weekly_login_time.txtを読み込んでランキングを表示
+function fetchAndDisplayRanking() {
+  fetch('weekly_login_time.txt')
+    .then(response => response.text())
+    .then(text => {
+      const lines = text.trim().split('\n').filter(line => line);
+      const users = lines.map(line => {
+        const [name, time] = line.split(',');
+        return { name, seconds: timeToSeconds(time), time };
+      });
+      users.sort((a, b) => b.seconds - a.seconds);
+      const top10 = users.slice(0, 10);
+      const rankingHtml = top10.map((u, i) =>
+        `<tr><td>${i + 1}位</td><td>${u.name}</td><td>${u.time}</td></tr>`
+      ).join('');
+      document.getElementById('weekly-ranking').innerHTML =
+        `<table><thead><tr><th>順位</th><th>ユーザ名</th><th>累計時間</th></tr></thead><tbody>${rankingHtml}</tbody></table>`;
+    })
+    .catch(err => {
+      document.getElementById('monthly-ranking').textContent = 'ランキングの取得に失敗しました';
+    });
+}
+
+// "hh:mm:ss"を秒に変換
+function timeToSeconds(timeStr) {
+  const [h, m, s] = timeStr.split(':').map(Number);
+  return h * 3600 + m * 60 + s;
+}
 
 
 

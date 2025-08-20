@@ -1,0 +1,266 @@
+#!/usr/bin/python3
+
+"""
+file            horsedeerhunt (/usr/local2/ast/bin)
+version     Ver.2.0
+author      Itsuki Hosaka (t22cs044)
+mail            t22cs044@yamanashi.ac.jp
+date            2024/5/18
+brief           このスクリプトはソケットを監視するツールです
+
+note        このプログラムは山梨大学のKKI活動範囲内であれば自由に改変・利用して頂いて構いません．
+            また使えなくなった際には削除してしまって構いません．
+
+            2024/5/16 f**kusingaiリリース
+            2024/5/18 ver.1.0 先代のf**kusingai(作成者同一)を改良し，リリース
+            2024/6/5  ver.1.1 一定時間ごとにDNS解決を行うように動作変更
+            2024/11/22  ver.2.0 TCPソケットにおいけ，最終送受信時刻を考慮し，通信を検知するように変更
+            2024/12/02  ver.2.1 ログ解析時のエラーごときで止まらなくなりました
+"""
+
+# 監視する端末の一覧
+hostname=[] #ホストのリストを宣言
+hostname+=(["aw"+str(i).zfill(2) for i in range(1,7)])# aw01,aw02,aw03,aw04,aw05,aw06を指定する(aw07は範囲に入らない)
+hostname+=(["bw"+str(i).zfill(2) for i in range(1,13)]) # bw01~bw12を指定する
+hostname+=(["cw"+str(i).zfill(2) for i in range(1,13)]) # cw01~cw12を指定する
+hostname+=(["dw"+str(i).zfill(2) for i in range(1,13)]) # dw01~dw12を指定する
+hostname+=(["ew"+str(i).zfill(2) for i in range(1,9)])  # ew01~ew08を指定する
+hostname+=(["fw"+str(i).zfill(2) for i in range(1,13)]) # fw01~fw12を指定する
+hostname+=(["gw"+str(i).zfill(2) for i in range(1,13)]) # gw01~gw12を指定する
+hostname+=(["hw"+str(i).zfill(2) for i in range(1,13)]) # hw01~hw12を指定する
+hostname+=(["iw"+str(i).zfill(2) for i in range(1,13)]) # iw01~iw12を指定する
+hostname+=(["jw"+str(i).zfill(2) for i in range(1,13)]) # jw01~jw12を指定する
+hostname+=(["kw"+str(i).zfill(2) for i in range(1,11)]) # kw01~kw10を指定する
+hostname+=(["lw"+str(i).zfill(2) for i in range(1,13)]) # lw01~lw12を指定する
+hostname+=(["mw"+str(i).zfill(2) for i in range(1,7)]) # mw01~mw06を指定する
+hostname+=(["nw"+str(i).zfill(2) for i in range(1,13)]) # nw01~nw12を指定する
+hostname+=(["zw"+str(i).zfill(2) for i in range(1,4)]) # zw01~zw03を指定する
+hostname.remove("zw02") # Windows端末のため
+
+# ここから下はスクリプトです
+
+import getpass
+import re # 正規表現を使うためのライブラリ
+import subprocess # シェルコマンドを実行するためのライブラリ
+import datetime # 日時を取得するためのライブラリ
+import socket # ホスト名を取得するために使用
+import threading # スレッドを使うためのライブラリ
+import locale # 地域を使うため
+import os # プロセスIDを取得するため
+import argparse # コマンドライン引数を取得するため
+import time # 時間を取得するため
+import signal # Ctrl+Cで終了するため
+import sys # 終了するため
+import atexit # 終了時の処理を行うため
+
+name = socket.gethostname()
+arg = argparse.ArgumentParser(
+                prog="horsedeerhunt",
+                usage="horsedeerhunt [option] ",
+                description='Hello world!!',
+                epilog=
+"""
+T23CS014の実験コマンドです。
+"""
+                )
+arg.add_argument('-thread','--thread',action='store_true',help='現在ログインしている端末のみを対象にします。開発者用オプションです')
+arg.add_argument('-i','--interval',type=int,default=4,help='ログの取得間隔を指定します。デフォルトは5秒です。')
+arg.add_argument('-p','--pinter',type=int,default=4,help='画面更新間隔を指定します。デフォルトは5秒です。')
+arg.add_argument('-d','--detail',action='store_true',help='標準出力画面にも詳細な出力を載せます')
+opt=arg.parse_args()
+
+
+#グローバルに使うやつ
+result=[]
+error=0
+errorlog=[]
+firstdata=[]
+for i in range(0,len(hostname)):
+    firstdata.append([]) #各端末ごとにデータを格納するリスト
+    firstdata[i] = [] #各端末ごとにデータを格納するリスト
+errordata=[""]*len(hostname) #主に並列処理の標準エラー出力の格納に使われます
+proclist=[] #プロセスリスト
+locale.setlocale(locale.LC_TIME,"en_US.UTF-8")
+
+def find_my_sessions():
+    current_user = getpass.getuser()    # 現在のユーザー名を取得
+    who_output = subprocess.check_output(['who']).decode('utf-8').strip().splitlines()    # 'who' コマンドを実行して現在ログインしているユーザーを取得
+    logged_in_users = [line.split()[0] for line in who_output]    # ログインしているユーザーのリストを作成
+    my_sessions = [user for user in logged_in_users if user == current_user]    # 自分のユーザー名が複数回出現するか確認
+    if len(my_sessions) > 1:
+        return
+    else:
+        service = "systemctl --user stop tracker-miner-fs-3.service "
+        subprocess.Popen(service,shell= True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,stdin=subprocess.PIPE) # SSHして所定のコマンドを実行
+
+
+# SSH接続先でのデータ取得用
+def getData():
+    ppid=int(os.getppid()) # 親プロセスのIDを取得
+    find_my_sessions() # 現在のユーザーが複数回ログインしているか確認
+    timeout = int(opt.interval)*1000*2 # タイムアウト時間を設定
+
+    while True: # 一定時間ごとにデータを取得する部分
+        who = subprocess.Popen("last --time-format=iso -w | grep -Ev 'gone|begin|reboot|crash|down'", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        who_output, who_error = who.communicate()
+        who = who_output.decode('utf-8').strip().splitlines() # 現在ログイン中のユーザーの確認
+        senddata:str="" # 送信データ
+        # print(who)
+        try:
+            if len(who) < 1:
+                time.sleep(opt.interval) # 指定された時間待機
+                continue
+            count = 0
+            for line in who: # 出力結果を解析
+                if count>20: # 負荷が高いため出力数を制御
+                    continue
+                line = re.sub('\t', ',', line)  # 複数の空白を一つの空白に置き換える
+                line = re.sub(' +', ' ', line)  # 複数の空白を一つの空白に置き換える
+                line = line.split(" ") # スペースで区切る
+
+                if not ":"in line[1] and not "tty" in line[1]: # 実機じゃなければ排除
+                    continue
+
+
+                delta = 0
+                try: # tty切り替えでログインする方への対策
+                    datetime.datetime.fromisoformat(line[2]).astimezone(datetime.timezone.utc) # ログアウト時刻を取得 (aware datetime)
+                    line.insert(2," ")
+                except:
+                    pass
+                now = datetime.datetime.now(datetime.timezone.utc) # 現在時刻を取得 (aware datetime)
+                logintime = datetime.datetime.fromisoformat(line[3]).astimezone(datetime.timezone.utc) # ログイン時刻を取得 (aware datetime)
+                if "logged" in line: # ログイン中の場合
+                    delta = now - logintime # ログイン時刻からの経過時間を取得
+                else:
+                    count+=1 # ログイン履歴のみ動かす
+                    logouttime = datetime.datetime.fromisoformat(line[5]).astimezone(datetime.timezone.utc) # ログアウト時刻を取得 (aware datetime)
+                    delta = logouttime - logintime # ログイン時刻からの経過時間を取得
+                usingtime = str(int(delta.total_seconds())) # 経過時間を取得
+                # print(usingtime)
+                hostname = socket.gethostname().split(".")[0]  # ホスト名を取得
+                line = [hostname,line[1],line[3],line[5],usingtime] # ex) zw03,:1,2025-04-22T11:50:35+09:00,2025-04-22T12:44:30+09:00,3235
+                senddata=senddata+str(datetime.datetime.now())+","+",".join(line)+"\n" # データを送信データに追加 ex)2025-04-26 17:01:37.180993,zw03,:1,2025-04-22T11:50:35+09:00,2025-04-22T12:44:30+09:00,3235
+
+            if senddata!="": # 送信すべきデータが存在する場合
+                print(senddata,end="",flush=True) # データをSSHクライアントに送信
+            time.sleep(opt.interval //2) # 指定された時間待機
+            if ppid!=int(os.getppid()): # ユーザーのSSH接続が切れた場合（何故かrootのsshdに持っていかれ，終了しないため，このように対処）
+                senddata=senddata+str(datetime.datetime.now())+","+name.split(".")[0]+",Program Log,Error-0x01 : Parent Process is terminated\n" # 万が一生きていた時のためにログを残す
+                print(senddata,end="",flush=True) # ログをSSHクライアントに送信
+                sys.exit(0) # プロセスを終了
+        except Exception as e:
+            logger("Error-0x02 : "+str(e)) # エラーログをファイルに出力
+            logger("Error-0x02 : "+str(line)) # エラーログをファイルに出力
+            logger("Error-0x02 : "+str(e.with_traceback())) # エラーログをファイルに出力
+            senddata=senddata+str(datetime.datetime.now())+","+name.split(".")[0]+",Program Log,Error-0x02 : "+str(e.with_traceback)+'\n' # エラーログを吐く
+            print(senddata,end="",flush=True) # ログをSSHクライアントに送信
+            sys.exit(0) # プロセスを終了
+
+# ホストにおけるSSH接続管理のためのスレッド
+def ssh(host,i,lock):
+    global firstdata # 並列処理の標準出力(ログ&データ)の格納用
+    whonow_thread=os.path.abspath(__file__)+' -thread -i '+str(opt.interval) # 絶対パスを取得して，SSH接続先で実行するコマンドを作成
+    while True:
+        try:
+            proc=subprocess.Popen('exec ssh ' + host + ' "'+whonow_thread+'"',shell= True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,stdin=subprocess.PIPE) # SSHして所定のコマンドを実行
+            proclist.append(proc) # プロセスリストに追加(一応)
+            while True:
+                line = proc.stdout.readline().decode('utf-8') # 標準出力を取得．なお何もない場合はここで待機してくれるっぽい
+                with lock: # 出力エリアのロックを取得．データの不一致はロックがなくてもほぼ起こらないが念のため
+                    if line: # もし標準出力があった場合 # 改行で分割
+                        # 3列目の値がユニークかどうかを確認
+                        unique_values = [str(entry[1]+entry[2]+entry[3]+entry[4]) for entry in firstdata[i]]
+                        if str(line.split(",")[1]+line.split(",")[2]+line.split(",")[3]+line.split(",")[4]) not in unique_values:
+                            firstdata[i].append(line.split(",")) # 出力データを格納
+                            # print(firstdata)
+                    if not line and proc.poll() is not None: # もし標準出力がなく，かつプロセスが終了していた場合
+                        for errorline in proc.stderr.readlines(): # エラー出力を取得
+                            errortmp = str(datetime.datetime.now())+",HOST,Program Log,"+"Error-0x03 : "+hostname[i]+" "+errorline.decode('utf-8').replace("\n","")+'\n' # エラーログを吐く
+                            firstdata[i].append(errortmp.split(",")) # エラーログを格納
+                        errorlogtmp = str(datetime.datetime.now())+",HOST,Program Log,"+"Error-0x04 : "+hostname[i]+" is disconnected"+'\n' # エラーログを吐く
+                        firstdata[i].append(errorlogtmp.split(",")) # エラーログを格納
+                        break # ループを抜ける
+        except Exception as e:
+            errorlogtmp = str(datetime.datetime.now())+",HOST,Program Log,"+"Error-0x00 : "+hostname[i]+" "+str(e).replace("\n","")+'\n' # エラーログを吐く
+            firstdata[i] = errorlogtmp.split(",") # エラーログを格納
+            logger(errorlogtmp) # エラーログをファイルに出力
+            logger("Error-0x00 : "+str(e)) # エラーログをファイルに出力
+            logger("Error-0x00 : "+str(line)) # エラーログをファイルに出力
+            logger("Error-0x00 : "+str(e.with_traceback())) # エラーログをファイルに出力
+            time.sleep(10) # クールダウン時間待機
+        time.sleep(10) # 接続エラーのため，クールダウン時間待機して再接続
+
+
+
+
+
+#情報の収集
+def collection():
+    ppid=int(os.getppid()) # 親プロセスのIDを取得
+    lock = [] # Initialize lock as an empty list
+    i=0 #各端末ごとにデータを格納するリスト
+    th=[] #各スレッド情報を格納するリスト
+    for host in hostname:
+        lock.append(threading.Lock()) # スレッド毎にロックを作成
+        th.append(threading.Thread(target=ssh,args=(host,i,lock[i],),daemon=True))# ssh(host,i)という命令をスレッドを追加
+        th[i].start()# 実行
+        i=i+1
+    def clean():
+        for p in proclist:
+            try:
+                p.terminate()  # プロセスを終了
+                p.wait(timeout=2)  # 終了を待つ
+            except subprocess.TimeoutExpired:
+                print(f"Process {p.pid} did not terminate, killing it.")
+                p.kill()  # 強制終了
+        sys.exit(0)
+    def signal_handler(sig, frame): # Ctrl+Cで終了するための関数
+        clean() # 終了処理を行う
+
+
+    # for sig in [signal.SIGHUP, signal.SIGINT, signal.SIGTERM]:
+    #     signal.signal(sig, signal_handler) # 各シグナルで終了するための設定
+    atexit.register(clean)
+    result="" # 結果を格納する変数
+    while True:
+        time.sleep(opt.interval) # 指定された時間待機
+
+        for i in range(0,len(hostname)): # 各端末ごとにデータを取得
+            tmp = "".join([",".join(line) for line in firstdata[i]]) # firstdataを,と\nで連結
+            # print(tmp)
+            result=result+tmp # 出力データを収集
+            with lock[i]: # 出力エリアのロックを取得
+                firstdata[i]=[] # 改修した部分を初期化
+            # if result!="": # もし出力データがあった場合
+            #     f.write(result)
+
+
+        # print(opt.detail)
+        if not opt.detail: # 詳細表示が指定されていた場合
+            result_out=[]
+            for r in result.splitlines(): # 結果を1行ずつ取得
+                result_out.append(r) # とりあえず出す
+            result="\n".join(result_out) # 結果を出力
+
+        result="Update Time : "+str(datetime.datetime.now())+"\n"+result # 時間を出しつつ，結果を表示
+        # print(result,flush=True) # 結果を表示
+        
+        with open("/home/t23cs014/local_html/seat/seat_output.txt", "w", encoding="utf-8") as f:
+            f.write(result)
+
+        result="" # 結果を格納する部分の初期化
+        if ppid!=int(os.getppid()): # ユーザーのSSH接続が切れた場合（何故かrootのsshdに持っていかれ，終了しないため，このように対処）
+            for p in proclist:
+                p.terminate() # プロセスを終了させる
+            sys.exit(0) # プロセスを終了
+
+def logger(text:str):
+    with open("whonow.log", "a") as f:
+        f.write(f"[{datetime.datetime.now()}] {text}\n")
+
+# main部分
+if opt.thread:
+    getData()
+else:
+    collection()
