@@ -16,9 +16,10 @@ document.addEventListener("DOMContentLoaded", function() {// DOMの読み込み�
   // ランキング表示
   fetchAndDisplayRanking();
 });
+
 // weekly_login_time.txtを読み込んでランキングを表示
 function fetchAndDisplayRanking() {
-  fetch('weekly_login_time.txt')
+  fetch('./weekly_login_time.txt')
     .then(response => response.text())
     .then(text => {
       const lines = text.trim().split('\n').filter(line => line);

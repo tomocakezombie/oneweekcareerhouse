@@ -6,12 +6,18 @@ version     ?
 author      t23cs014 t23cs048 t23cs050
 brief       一種間チャンネルキャリアハウス
 """
-###########################################################################
-#                       出力先ファイル指定                                  #
-###########################################################################
 
-output_file_path = "/home/t23cs014/local_html/test/careea/oneweekcareerhouse/seat_output.txt"
-output_log_file_path = "/home/t23cs014/local_html/test/careea/oneweekcareerhouse/seat_log.txt"
+################# 出力先ファイル指定 ########################                                 
+
+# output_file_path = "/home/t23cs014/local_html/test/careea/oneweekcareerhouse/seat_output.txt"
+# output_log_file_path = "/home/t23cs014/local_html/test/careea/oneweekcareerhouse/seat_log.txt"
+# output_weekly_login_path = "/home/t23cs014/local_html/test/careea/oneweekcareerhouse/weekly_login_time.txt"
+
+output_file_path = "../seat_output.txt"
+output_log_file_path = "../seat_log.txt"
+output_weekly_login_path = "../weekly_login_time.txt"
+
+############################################################
 
 # 監視する端末の一覧
 hostname=[] #ホストのリストを宣言
@@ -47,6 +53,8 @@ import time # 時間を取得するため
 import signal # Ctrl+Cで終了するため
 import sys # 終了するため
 import atexit # 終了時の処理を行うため
+import collections
+import traceback
 
 name = socket.gethostname()
 arg = argparse.ArgumentParser(
@@ -186,6 +194,50 @@ def ssh(host,i,lock):
             time.sleep(10) # クールダウン時間待機
         time.sleep(10) # 接続エラーのため，クールダウン時間待機して再接続
 
+def parse_login_data(line):
+    # 例: 2025-04-26 17:01:37.180993,zw03,:1,2025-04-22T11:50:35+09:00,2025-04-22T12:44:30+09:00,3235
+    try:
+        parts = line.strip().split(",")
+        if len(parts) < 6:
+            return None
+        hostname = parts[1]
+        user = parts[6]
+        login_time = parts[3]
+        logout_time = parts[4]
+        using_time = int(parts[5])
+        return user, login_time, using_time
+    except Exception:
+        return None
+    
+def calc_weekly_login(result_lines):
+    now = datetime.datetime.now(datetime.timezone.utc)
+    week_ago = now - datetime.timedelta(days=7)
+    user_time = collections.defaultdict(int)
+    for line in result_lines:
+        parsed = parse_login_data(line)
+        if not parsed:
+            continue
+        user, login_time, using_time = parsed
+        try:
+            login_dt = datetime.datetime.fromisoformat(login_time)
+            if login_dt.tzinfo is None:
+                login_dt = login_dt.replace(tzinfo=datetime.timezone.utc)
+        except Exception:
+            continue
+        if login_dt >= week_ago:
+            user_time[user] += using_time
+    return user_time
+
+def write_weekly_login(user_time, filepath):
+    with open(filepath, "w", encoding="utf-8") as f:
+        for user, total_sec in sorted(user_time.items()):
+            if not user.startswith("t"):  # 追加: sshで始まるユーザはスキップ
+                continue
+            hours = total_sec // 3600
+            minutes = (total_sec % 3600) // 60
+            seconds = total_sec % 60
+            f.write(f"{user},{hours:02}:{minutes:02}:{seconds:02}\n")
+
 #情報の収集
 def collection():
     ppid=int(os.getppid()) # 親プロセスのIDを取得
@@ -223,8 +275,12 @@ def collection():
             result=result+tmp # 出力データを収集
             with lock[i]: # 出力エリアのロックを取得
                 firstdata[i]=[] # 改修した部分を初期化
-            # if result!="": # もし出力データがあった場合
-            #     f.write(result)
+
+        # --- 修正ここから ---
+        all_lines = result.splitlines()
+        user_time = calc_weekly_login(all_lines)
+        write_weekly_login(user_time, output_weekly_login_path)
+        # --- 修正ここまで ---
 
 
         # print(opt.detail)
