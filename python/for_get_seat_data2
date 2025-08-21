@@ -1,0 +1,263 @@
+#!/usr/bin/python3
+
+"""
+file: for_get_seat_data2(/home/t23cs014/bin)
+
+note        キャリアハウスのランキング機能搭載に向けて適時内容を変更する
+            
+            t23cs014のlwwホームページ用
+
+"""
+
+# 端末の定義
+hostname = []
+hostname += (["aw"+str(i).zfill(2)for i in range(1,7)])
+hostname += (["bw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["cw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["dw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["ew"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["fw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["gw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["hw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["iw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["jw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["kw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["lw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["mw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["nw"+str(i).zfill(2)for i in range(1,13)])
+hostname += (["zw"+str(i).zfill(2)for i in range(1,4)])
+
+import os
+import threading
+import sys
+import subprocess
+import time
+import argparse
+import re
+import signal
+import datetime
+import getpass
+
+parser = argparse.ArgumentParser(description='キャリアハウス：一週間チャンネルのスクリプト')
+
+# 引数を追加
+parser.add_argument('-t', '--thread', help='ssh先で実行させる際に使用するオプション予定', action='store_true') # store_trueは引数があるか否かでtrue/falseを表すようにするやつ
+# parser.add_argument('-h', '--help', help='コマンドの詳細説明をするよ')
+
+args = parser.parse_args()
+
+proclist = [] # 実行しているプロセスIDを保存
+newest_data = [] # 最新のデータを保存する
+# output_file_path = "/home/t23cs014/local_html/seat/公開しないやつ/last_result.txt" # 出力先のファイルパス
+# output_error_file_path = "/home/t23cs014/local_html/seat/公開しないやつ/last_error.txt" # エラー出力先のファイルパス
+# output_debug_file_path = "/home/t23cs014/local_html/seat/公開しないやつ/last_debug.txt" # デバッグ出力先のファイルパス
+output_file_path = "./公開しないやつ/last_result.txt" # 出力先のファイルパス
+output_error_file_path = "./公開しないやつ/last_error.txt" # エラー出力先のファイルパス
+output_debug_file_path = "./公開しないやつ/last_debug.txt" # デバッグ出力先のファイルパス
+
+
+def stop_tracker():
+    current_user = getpass.getuser() # コマンド実行者のユーザー名を取得
+    who_output = subprocess.check_output(['who']).decode('utf-8').strip().splitlines() # whoコマンドの出力を取得
+    login_users = [line.split()[0] for line in who_output] # ログインしているユーザーをリストで取得
+    my_sessions = [user for user in login_users if current_user == user]
+
+    # セッションが複数ある場合は、tracker-miner-fs-3.serviceを停止しない
+    if len(my_sessions) > 1:
+        return 
+
+    service = "systemctl --user stop tracker-miner-fs-3.service"
+    subprocess.Popen(service, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) # tracker-miner-fs-3.serviceを停止する
+    
+def get_last_data():
+
+    cool_down_time = int(1)
+    current_user = getpass.getuser()
+    stop_tracker()
+
+    while True:
+        ''' 座席情報取得処理テスト '''
+        # print("pinige doukkukai",  flush=True)
+        # time.sleep(3)
+        ''' テスト終了'''
+        try:
+            # 実行するコマンドを定義
+            proc = subprocess.Popen("last --time-format=iso || grep -v 'gone|begin|reboot|crash|down'", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            
+            # 実行結果を取得
+            last_output, last_error = proc.communicate() 
+
+            # 実行結果をリストに保存
+            last_results : list[str] = last_output.decode('utf-8').strip().splitlines() # 改行で分割してリスト化
+
+            to_send_data = ""
+
+            try:
+                # ブロック節
+                if len(last_output) < 1:
+                    time.sleep(cool_down_time)
+                    continue
+
+                count = 0
+                for line in last_results:
+
+
+           
+            # 標準出力を一行ずつ表示
+            # for i, line in enumerate(proc.stdout):
+                
+                # # 空白をカンマに置換する予定
+                line = re.sub('\t', ' ', line) # タブを空白に置換
+                line = re.sub(' +', ' ', line).strip() # 複数の空白を１つの空白に置換
+
+                # # デバッグ用書き出し
+                # with open(output_debug_file_path, "w", encoding="utf-8") as f:
+                #     f.write(line)
+
+                # parts = line.split(" ")
+
+                # if len(parts) < 6: # 3つ以上の要素がない場合はスキップ
+                #     print("if文検証："+line, flush=True)
+                #     continue
+
+                # if not(":" in parts[1] and not "tty" in parts[1]): # 実機か否かの判別処理 適時変更
+                #     continue
+                
+                # temp.append(parts[1] + " ")
+                # temp.append(parts[2] + " ")
+                # temp.append(parts[3] + " ")
+                # temp.append(parts[5] + "\n")
+                # temp.append(line.split(" ")) # 取得した行をtempに追加
+            
+
+            # print(temp, flush=True) # (二次リスト)を保存 ex. [['t2500093', ':1', ':1', '2025-05-02T14:48:53+09:00', '-', '2025-05-02T16:22:16+09:00', '(01:33)'],...]
+                
+        # except Exception as e:
+            # print(e) 
+
+        finally:
+            proc.terminate() # 子プロセスを終了
+            proc.wait() # 子プロセル終了まで待つ
+        
+# ssh + このコマンドをthreadオプション付きで実行する関数
+def ssh(hostname, i, lock):
+    ''' SSH関数の書き込みテスト '''
+    # global newest_data
+    # while True:
+    #     newest_data.append(str(i) + "番目のデータ更新") # 最新のデータを保存するリストを追加
+    #     time.sleep(3)
+
+    ''' テスト修了 '''
+
+
+    global newest_data # 並列処理の標準出力(ログ&データ)の格納用
+    # 絶対パスを取得して，SSH接続先で実行するコマンドを作成
+    command = os.path.abspath(__file__) +' -t ' # os.path.abspath(__file__): このファイルの絶対パスを取得する
+
+    # コマンドを無限に実行させるためのwhile文 異常終了したら復活させたい
+    while True:
+        try :
+            proc = subprocess.Popen('ssh ' + hostname + ' "' + command + '"', shell= True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,stdin=subprocess.PIPE) # SSHして所定のコマンドを実行
+            proclist.append(proc) # プロセスリストに追加
+
+            # newest_data.append("hostname: " + hostname + "\n") # 最新のデータを保存するリストを追加
+            with open(output_debug_file_path, "a", encoding="utf-8") as f:
+                f.write(hostname + "のスレッドの標準出力受付開始\n")
+
+            while True:
+                line = proc.stdout.readline().decode('utf-8') # 標準出力を取得．
+                
+                if line: # もし標準出力があった場合
+                    with open(output_debug_file_path, "a", encoding="utf-8") as f:
+                        f.write("debug用：" + line)
+
+                with lock: # 出力エリアのロックを取得
+                    if line: # もし標準出力があった場合 出力しべきデータをクライジングする
+                        # newest_data.append(hostname + " " + line) # 最新のデータを保存
+                        for element in line:
+                            print(time.strftime("%Y/%m/%d %H:%M:%S", time.localtime())+" "+hostname +" "+element[4]+" "+element[5]+"\n")
+                            newest_data.append(time.strftime("%Y/%m/%d %H:%M:%S", time.localtime())+" "+hostname +" "+element[4]+" "+element[5]+"\n")
+
+                    if not line and proc.poll() is not None: # 接続が切れた場合
+                        break
+        
+        except Exception as e: # Popenによる実行が終了した場合に実行する箇所
+
+            with open(output_error_file_path, "a", encoding="utf-8") as f:
+                f.write("hostname: " + hostname + "\n")
+                f.write("Error: " + str(e) + "\n")
+        
+        finally: # 異常終了したプロセスを排除
+            proc.terminate()
+            proc.wait()
+            proclist.remove(proc)
+
+        
+        time.sleep(1)
+
+def clean():
+    for p in proclist:
+        try:
+            p.terminate()  # プロセスを終了
+            p.wait(timeout=2)  # 終了を待つ
+        except subprocess.TimeoutExpired:
+            print(f"Process {p.pid} did not terminate, killing it.")
+            p.kill()  # 強制終了
+    sys.exit(0)
+
+ # Ctrl+Cで終了するための関数
+def signal_handler(sig, frame): # Ctrl+Cの割り込みを受け取り次第、clean関数を実行
+    clean() # 終了処理を行う
+
+def collection():
+    locks = [threading.Lock() for _ in hostname]
+    threads = []
+    for i, host in enumerate(hostname): # enumerate: テラブルオブジェクトの要素と同時にインデックスを取得する
+        t = threading.Thread(target=ssh, args=(host, i, locks[i])) # ssh関数をスレッドで実行
+        t.start()
+        threads.append(t) # スレッドIDを保存
+    
+    print("スレッド処理開始")
+    to_output = ""
+
+    while True:
+
+        if not newest_data:
+            continue
+
+        newest_data.append("Update Time : " + time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()) + "\n") # 更新時間を出力に入れる タイムスタンプ的な？
+        for line in newest_data:
+            # print(line)
+            to_output += line # 最新のデータを結合してto_outputに保存
+
+        # ここでto_outputをファイルに書き込む
+        with open(output_file_path, "w", encoding="utf-8") as f:
+            f.write(to_output)
+        
+        to_output = ""        
+        time.sleep(5)
+        print("5秒待機")
+
+def clean():
+    threading.Event().set()
+    for p in proclist:
+        try:
+            p.terminate()
+            p.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            p.kill()
+    sys.exit(0)
+
+
+# メイン処理
+def main():
+    # コマンド実行時、引数にthreadオプションが付与されていた場合の処理 ssh先でのみ行う
+    if args.thread: # スレッド処理
+        # print("SSH接続先で処理",  flush=True)
+        get_last_data()
+      
+    else: # 座席情報取得処理
+        collection()
+
+if __name__ == '__main__':
+    main()
