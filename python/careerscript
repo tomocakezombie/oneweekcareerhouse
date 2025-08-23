@@ -142,7 +142,7 @@ def getData():
                 usingtime = str(int(delta.total_seconds())) # 経過時間を取得
                 # print(usingtime)
                 hostname = socket.gethostname().split(".")[0]  # ホスト名を取得
-                line = [hostname,line[1],line[3],line[5],usingtime] # ex) zw03,:1,2025-04-22T11:50:35+09:00,2025-04-22T12:44:30+09:00,3235
+                line = [hostname,line[1],line[3],line[5],usingtime,line[0]] # ex) zw03,:1,2025-04-22T11:50:35+09:00,2025-04-22T12:44:30+09:00,3235
                 senddata=senddata+str(datetime.datetime.now())+","+",".join(line)+"\n" # データを送信データに追加 ex)2025-04-26 17:01:37.180993,zw03,:1,2025-04-22T11:50:35+09:00,2025-04-22T12:44:30+09:00,3235
 
             if senddata!="": # 送信すべきデータが存在する場合
