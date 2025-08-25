@@ -13,13 +13,16 @@ document.addEventListener("DOMContentLoaded", function() {// DOMの読み込み�
     // インターバルで常に実行
     setInterval(fetchData, 5000);// 5秒ごとにfetchDataを実行
 
-  // ランキング表示
-  fetchAndDisplayRanking();
+    // ランキングも5秒ごとに更新
+    fetchAndDisplayRanking();
+    setInterval(fetchAndDisplayRanking, 5000);
 });
 
 // weekly_login_time.txtを読み込んでランキングを表示
 function fetchAndDisplayRanking() {
-  fetch('./weekly_login_time.txt')
+  // キャッシュ防止のために毎回異なるクエリを付与
+  const url = './weekly_login_time.txt?nocache=' + new Date().getTime();
+  fetch(url)
     .then(response => response.text())
     .then(text => {
       const lines = text.trim().split('\n').filter(line => line);
@@ -28,15 +31,36 @@ function fetchAndDisplayRanking() {
         return { name, seconds: timeToSeconds(time), time };
       });
       users.sort((a, b) => b.seconds - a.seconds);
-      const top10 = users.slice(0, 10);
+      const top10 = [];
+      for (let i = 0; i < 10; i++){
+        if(users[i]){
+          top10.push(users[i]);
+        }else{
+          top10.push({name: "NONE", time: "NONE", seconds: 0});
+        }
+      }
+      const rankIcons = [
+        "🥇", // 1位
+        "🥈", // 2位
+        "🥉"  // 3位
+      ];
       const rankingHtml = top10.map((u, i) =>
-        `<tr><td>${i + 1}位</td><td>${u.name}</td><td>${u.time}</td></tr>`
+        `<tr class="rank-${i + 1}">
+          <td>${rankIcons[i] || (i + 1 + "位")}</td>
+          <td>${u.name}</td>
+          <td>${u.time}</td>
+        </tr>`
       ).join('');
       document.getElementById('weekly-ranking').innerHTML =
-        `<table><thead><tr><th>順位</th><th>ユーザ名</th><th>累計時間</th></tr></thead><tbody>${rankingHtml}</tbody></table>`;
+        `<table>
+          <thead>
+            <tr><th>順位</th><th>ユーザ名</th><th>累計時間</th></tr>
+          </thead>
+          <tbody>${rankingHtml}</tbody>
+        </table>`;
     })
     .catch(err => {
-      document.getElementById('monthly-ranking').textContent = 'ランキングの取得に失敗しました';
+      document.getElementById('weekly-ranking').textContent = 'ランキングの取得に失敗しました';
     });
 }
 
