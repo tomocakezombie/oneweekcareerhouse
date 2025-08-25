@@ -70,6 +70,7 @@ arg.add_argument('-thread','--thread',action='store_true',help='現在ログイ�
 arg.add_argument('-i','--interval',type=int,default=4,help='ログの取得間隔を指定します。デフォルトは5秒です。')
 arg.add_argument('-p','--pinter',type=int,default=4,help='画面更新間隔を指定します。デフォルトは5秒です。')
 arg.add_argument('-d','--detail',action='store_true',help='標準出力画面にも詳細な出力を載せます')
+arg.add_argument('-rank',action='store_true',help='一週間のログイン時間ランキングを更新します')
 opt=arg.parse_args()
 
 
@@ -279,7 +280,8 @@ def collection():
         # --- 修正ここから ---
         all_lines = result.splitlines()
         user_time = calc_weekly_login(all_lines)
-        write_weekly_login(user_time, output_weekly_login_path)
+        if opt.rank:
+            write_weekly_login(user_time, output_weekly_login_path)
         # --- 修正ここまで ---
 
 
