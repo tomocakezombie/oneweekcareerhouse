@@ -1,3 +1,217 @@
+/* ランキング4～10位の特別色 */
+#weekly-ranking tr.rank-4-10, #weekly-ranking tbody tr.rank-4-10 {
+  background: #e3f1ff !important;
+  color: #543d80 !important;
+  font-weight: bold !important;
+}
+@media (max-width: 600px) {
+  .header {
+    padding: 6px 6px;
+    flex-direction: column;
+    align-items: flex-start;
+    border-radius: 0 0 10px 10px;
+  }
+  .header h1 {
+    font-size: 0.5em;
+    margin-bottom: 3px;
+  }
+  .header nav {
+    gap: 10px;
+    font-size: 0.8em;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .header nav a {
+    padding: 4px 8px;
+    font-size: 0.8em;
+  }
+}
+/* アクセシビリティ: 端末セルのフォーカス枠 */
+.computers:focus {
+  outline: 3px solid #ff9800;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px #ffd18088;
+  z-index: 3;
+}
+.computers .status-icon {
+  font-size: 1.2em;
+  margin-right: 2px;
+  vertical-align: middle;
+}
+/* 端末セルの色変化をアニメーション */
+.computers, #terminal-table td, #terminal-table th {
+  transition: background-color 0.5s cubic-bezier(.4,0,.2,1), color 0.3s, transform 0.2s;
+}
+/* --- UIリニューアル追加 --- */
+.header {
+  background: linear-gradient(90deg, #3979b8 60%, #3979b8 100%);
+  color: #fff;
+  padding: 20px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 12px rgba(57,121,184,0.10);
+  border-radius: 0 0 16px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  animation: fadein 1s;
+}
+.header h1 {
+  margin: 0;
+  font-size: 2.1em;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  text-shadow: 1px 2px 8px #0002;
+}
+.header nav {
+  display: flex;
+  gap: 24px;
+}
+.header nav a {
+  color: #fff;
+  text-decoration: none;
+  font-weight: bold;
+  padding: 6px 16px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.08);
+  transition: background 0.2s, transform 0.2s;
+  font-size: 1.08em;
+}
+.header nav a:hover {
+  background: #fff;
+  color: #0bac9c;
+  transform: translateY(-2px) scale(1.07);
+  box-shadow: 0 2px 8px #3979b833;
+  outline: none;
+  border: 2px solid #3979b8;
+}
+
+.header nav a:focus {
+  background: #eaf3fa;
+  color: #113687;
+  outline: none;
+  border: 2px solid #3979b8;
+  box-shadow: 0 0 0 3px #b3d0ea88;
+  z-index: 2;
+}
+
+.footer {
+  background: linear-gradient(90deg, #3979b8 60%, #5fa8d3 100%);
+  color: #fff;
+  text-align: center;
+  padding: 18px 0;
+  margin-top: 48px;
+  font-size: 1.05em;
+  letter-spacing: 0.05em;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -2px 12px rgba(57,121,184,0.10);
+  animation: fadein 1.2s;
+}
+
+main {
+  margin-top: 40px;
+  padding: 0 2vw;
+  font-size: 1.08em;
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.table-responsive {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px #3979b81a;
+  padding: 18px 8px 18px 8px;
+  margin-bottom: 32px;
+  animation: fadein 1.2s;
+}
+
+#terminal-table {
+  background: #f7fafc;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px #3979b81a;
+  animation: fadein 1.3s;
+}
+
+#terminal-table td, #terminal-table th {
+  transition: background 0.3s, color 0.3s, transform 0.2s;
+}
+#terminal-table td:hover {
+  background: #e3f1ff !important;
+  transform: scale(1.05);
+  z-index: 2;
+  position: relative;
+}
+
+#weekly-ranking table {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px #b3d0ea33;
+  animation: fadein 1.4s;
+}
+
+.breadcrumbs {
+  color: #3979b8;
+  font-size: 0.98em;
+  margin-bottom: 12px;
+  margin-top: 0;
+  letter-spacing: 0.04em;
+}
+.breadcrumbs a {
+  color: #3979b8;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+.breadcrumbs a:hover {
+  color: #23527c;
+}
+
+#comment {
+  font-size: 1.1em;
+  font-weight: bold;
+  margin-top: 8px;
+  margin-bottom: 16px;
+  transition: color 0.3s;
+}
+
+.class_plans {
+  border-radius: 10px;
+  box-shadow: 0 2px 12px #3979b81a;
+  border: 1.5px solid #b3d0ea;
+  margin-top: 18px;
+  margin-bottom: 24px;
+  animation: fadein 1.5s;
+}
+
+@keyframes fadein {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ボタン例 */
+.btn-main {
+  background: linear-gradient(90deg, #3979b8 60%, #5fa8d3 100%);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 22px;
+  font-size: 1.08em;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 2px 8px #3979b833;
+  transition: background 0.2s, transform 0.2s;
+  margin: 8px 0;
+}
+.btn-main:hover {
+  background: #fff;
+  color: #3979b8;
+  transform: translateY(-2px) scale(1.07);
+  box-shadow: 0 4px 16px #3979b855;
+}
+
+/* --- 既存の細かい調整は下に残す --- */
 table {
   border-collapse: collapse; /* 枠線を一つにまとめる */
   width: 100%;

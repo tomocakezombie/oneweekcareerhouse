@@ -1,9 +1,10 @@
 const using_color = "#FF9933"; // 使用中の色
 const empty_color = "#e0ffff"; // 空きの色
 
-// ★ 上位3人のユーザ名を保持するグローバル変数を追加
-let top3Users = [];
+// ★ 上位10人のユーザ名を保持するグローバル変数を追加
+let top10Users = [];
 const top3Colors = ["#FFD700", "#C0C0C0", "#CD7F32"]; // 金・銀・銅
+const rank4_10Color = "#543d80"; // 4～10位の紫色
 
 document.addEventListener("DOMContentLoaded", function() {
     generateTable().then(() => {
@@ -27,8 +28,8 @@ function fetchAndDisplayRanking() {
       });
       users.sort((a, b) => b.seconds - a.seconds);
 
-      // ★ 上位3人のユーザ名を保存
-      top3Users = users.slice(0, 3).map(u => u.name);
+  // ★ 上位10人のユーザ名を保存
+  top10Users = users.slice(0, 10).map(u => u.name);
 
       const top10 = [];
       for (let i = 0; i < 10; i++){
@@ -43,13 +44,15 @@ function fetchAndDisplayRanking() {
         "🥈", // 2位
         "🥉"  // 3位
       ];
-      const rankingHtml = top10.map((u, i) =>
-        `<tr class="rank-${i + 1}">
+      const rankingHtml = top10.map((u, i) => {
+        let rankClass = `rank-${i + 1}`;
+        if(i >= 3 && i < 10) rankClass += ' rank-4-10';
+        return `<tr class="${rankClass}">
           <td>${rankIcons[i] || (i + 1 + "位")}</td>
           <td>${u.name}</td>
           <td>${u.time}</td>
-        </tr>`
-      ).join('');
+        </tr>`;
+      }).join('');
       document.getElementById('weekly-ranking').innerHTML =
         `<table>
           <thead>
@@ -85,7 +88,11 @@ function timeToSeconds(timeStr) {
           const cell = document.createElement("td");// 新しいセルを作成
           if (id) { // 空白セルでない場合
             cell.id = id;
+            cell.setAttribute('tabindex', '0'); // キーボード操作可
+            cell.setAttribute('role', 'gridcell');
+            cell.setAttribute('aria-label', `${id}端末 状態: 未取得`);
             cell.innerHTML = `
+              <span class="status-icon" id="${id}-icon" aria-hidden="true"></span>
               <div id="${id}-name">${id}</div>
               <div id="${id}-data"></div>
             `;// セルの内容を設定
@@ -141,26 +148,34 @@ function timeToSeconds(timeStr) {
         
             console.log(key);
             const element = document.getElementById(key);
-            if (element) {
-                // ★ 使用中の場合、上位3人なら特別色を適用
-                if(userObj[key]){
-                    // ユーザ名を取得
-                    const nameDiv = document.getElementById(`${key}-name`);
-                    let userName = nameDiv ? nameDiv.textContent : "";
-                    // 上位3人に該当するか判定
-                    let colorIndex = top3Users.indexOf(userName);
-                    if(colorIndex !== -1){
-                        element.style.backgroundColor = top3Colors[colorIndex];
-                    }else{
-                        element.style.backgroundColor = using_color;
-                    }
-                    sum_using++;
-                }
-                else{
-                    element.style.backgroundColor = empty_color;
-                    sum_empty++;
-                }
+      if (element) {
+        const icon = document.getElementById(`${key}-icon`);
+        // ★ 使用中の場合、上位3人なら特別色を適用
+        if(userObj[key]){
+          const nameDiv = document.getElementById(`${key}-name`);
+          let userName = nameDiv ? nameDiv.textContent : "";
+          let colorIndex = top10Users.indexOf(userName);
+          if(colorIndex !== -1){
+            if(colorIndex < 3){
+              element.style.backgroundColor = top3Colors[colorIndex];
+            }else{
+              element.style.backgroundColor = rank4_10Color;
             }
+          }else{
+            element.style.backgroundColor = using_color;
+          }
+          element.setAttribute('aria-label', `${key}端末 状態: 使用中${colorIndex!==-1?`(ランキング${colorIndex+1}位)`:""}`);
+          if(icon) icon.textContent = colorIndex===0 ? '🥇' : colorIndex===1 ? '🥈' : colorIndex===2 ? '🥉' : (colorIndex>=3 && colorIndex<10 ? '★' : '●');
+          sum_using++;
+        }
+        else{
+          element.style.backgroundColor = empty_color;
+          element.setAttribute('aria-label', `${key}端末 状態: 空き`);
+          if(icon) icon.textContent = '○';
+          sum_empty++;
+        }
+      }
+// フォーカス時の枠線強調（CSS追加を推奨）
         });
 
         // 使用率を表示
