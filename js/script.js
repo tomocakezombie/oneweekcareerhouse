@@ -1,26 +1,21 @@
 const using_color = "#FF9933"; // 使用中の色
 const empty_color = "#e0ffff"; // 空きの色
 
+// ★ 上位3人のユーザ名を保持するグローバル変数を追加
+let top3Users = [];
+const top3Colors = ["#FFD700", "#C0C0C0", "#CD7F32"]; // 金・銀・銅
 
-document.addEventListener("DOMContentLoaded", function() {// DOMの読み込みが完了したら実行
-    // HTMLの解析が完了した時点で実行される
-    // テーブルの配置
+document.addEventListener("DOMContentLoaded", function() {
     generateTable().then(() => {
-        // テーブルの配置が完了した後にfetchDataを呼び出す
         fetchData();
     });
-
-    // インターバルで常に実行
-    setInterval(fetchData, 5000);// 5秒ごとにfetchDataを実行
-
-    // ランキングも5秒ごとに更新
+    setInterval(fetchData, 5000);
     fetchAndDisplayRanking();
     setInterval(fetchAndDisplayRanking, 5000);
 });
 
 // weekly_login_time.txtを読み込んでランキングを表示
 function fetchAndDisplayRanking() {
-  // キャッシュ防止のために毎回異なるクエリを付与
   const url = './weekly_login_time.txt?nocache=' + new Date().getTime();
   fetch(url)
     .then(response => response.text())
@@ -31,6 +26,10 @@ function fetchAndDisplayRanking() {
         return { name, seconds: timeToSeconds(time), time };
       });
       users.sort((a, b) => b.seconds - a.seconds);
+
+      // ★ 上位3人のユーザ名を保存
+      top3Users = users.slice(0, 3).map(u => u.name);
+
       const top10 = [];
       for (let i = 0; i < 10; i++){
         if(users[i]){
@@ -103,90 +102,90 @@ function timeToSeconds(timeStr) {
 
   // 常に起動させる
   function fetchData() {
-    const using_pc= document.getElementById("使用");// 使用中の端末
-    const empty_pc= document.getElementById("空き");// 空きの端末
+    const using_pc= document.getElementById("使用");
+    const empty_pc= document.getElementById("空き");
 
-    if (using_pc && empty_pc) {// 使用中と空きの端末が存在する場合
-        using_pc.style.backgroundColor = using_color;// 使用中の端末の背景色を設定
-        empty_pc.style.backgroundColor = empty_color;// 空きの端末の背景色を設定
+    if (using_pc && empty_pc) {
+        using_pc.style.backgroundColor = using_color;
+        empty_pc.style.backgroundColor = empty_color;
     }
 
-
-
-    fetch('php/data.php')// PHPファイルからデータを取得
-    .then(response => response.json())// レスポンスをJSON形式に変換
+    fetch('php/data.php')
+    .then(response => response.json())
     .then(json => {
-      
-        console.log("データを更新");// データの更新をコンソールに表示
+        console.log("データを更新");
 
-        if(json.error){// エラーがある場合
-            document.getElementById("debug").textContent = json.error;// エラーメッセージを表示
+        if(json.error){
+            document.getElementById("debug").textContent = json.error;
             return;
         }
 
-        let is_new_time = false;// 新しい時間のフラグ
-        let update_time = "";// 更新時間の初期化
+        let is_new_time = false;
+        let update_time = "";
 
-        const users = json.data || json;// データを取得（json.dataが存在しない場合はjsonを使用）
+        const users = json.data || json;
         
-        let sum_using = 0;// 使用中の端末数
-        let sum_empty = 0;// 空きの端末数
-        // 受け取ったデータを処理
+        let sum_using = 0;
+        let sum_empty = 0;
+
         users.forEach(userObj => {
-            const key = Object.keys(userObj)[0];// キーを取得
+            const key = Object.keys(userObj)[0];
         
-            if (key === "is_new_time") {// 新しい時間のフラグを取得
-                is_new_time = userObj[key];// 新しい時間のフラグを設定
+            if (key === "is_new_time") {
+                is_new_time = userObj[key];
             }
         
-            if (key === "update_time") {// 更新時間を取得
-                update_time = userObj[key];// 更新時間を設定
+            if (key === "update_time") {
+                update_time = userObj[key];
             }
         
-            console.log(key);// キーをコンソールに表示
-            // 通常の座席処理
-            const element = document.getElementById(key);// 要素を取得
+            console.log(key);
+            const element = document.getElementById(key);
             if (element) {
-                // element.style.backgroundColor = userObj[key] ?  using_color  : empty_color;
-                if(userObj[key]){// 使用中の端末の場合
-                  element.style.backgroundColor = using_color;// 使用中の色を設定
-                    sum_using++;// 使用中の端末数をカウント
+                // ★ 使用中の場合、上位3人なら特別色を適用
+                if(userObj[key]){
+                    // ユーザ名を取得
+                    const nameDiv = document.getElementById(`${key}-name`);
+                    let userName = nameDiv ? nameDiv.textContent : "";
+                    // 上位3人に該当するか判定
+                    let colorIndex = top3Users.indexOf(userName);
+                    if(colorIndex !== -1){
+                        element.style.backgroundColor = top3Colors[colorIndex];
+                    }else{
+                        element.style.backgroundColor = using_color;
+                    }
+                    sum_using++;
                 }
                 else{
-                    element.style.backgroundColor = empty_color;// 空きの端末の場合
-                    sum_empty++;// 空きの端末数をカウント
+                    element.style.backgroundColor = empty_color;
+                    sum_empty++;
                 }
             }
         });
 
         // 使用率を表示
-        const using_rate = document.getElementById("using_rate");// 使用率の要素を取得
-        const comment = document.getElementById("comment");// コメントの要素を取得
-        let rate = sum_using / (sum_using + sum_empty) * 100;// 使用率を計算
-        if (using_rate && comment) {// 使用率とコメントの要素が存在する場合
-            using_rate.textContent = rate.toFixed(2);// 使用率を小数点以下2桁で表示
-            if(rate > 60){// 使用率が60%以上の場合
-                using_rate.style.color = "red";// 使用率の色を赤に設定
-                comment.textContent = "混雑しています";// コメントを更新
-
-            } else if(rate > 30){// 使用率が30%以上60%未満の場合
+        const using_rate = document.getElementById("using_rate");
+        const comment = document.getElementById("comment");
+        let rate = sum_using / (sum_using + sum_empty) * 100;
+        if (using_rate && comment) {
+            using_rate.textContent = rate.toFixed(2);
+            if(rate > 60){
+                using_rate.style.color = "red";
+                comment.textContent = "混雑しています";
+            } else if(rate > 30){
                 using_rate.style.color = "orange";
                 comment.textContent = "やや混雑しています";
-            } else {// 使用率が30%未満の場合
+            } else {
                 using_rate.style.color = "blue";
                 comment.textContent = "空き端末がたくさんあります";
             }
         }
 
-        
-        
-        // is_new_timeとupdate_timeを使って表示
-        const get_seat_status = document.getElementById("get_seat_status");// 座席情報の要素を取得
-
-        if (is_new_time) {// 新しい時間のフラグがtrueの場合
-            get_seat_status.innerHTML = "更新日時："+update_time;// 更新日時を表示
+        const get_seat_status = document.getElementById("get_seat_status");
+        if (is_new_time) {
+            get_seat_status.innerHTML = "更新日時："+update_time;
         } else {
-            get_seat_status.innerHTML = "座席情報が取得できていません";// 座席情報が取得できない場合のメッセージを表示
+            get_seat_status.innerHTML = "座席情報が取得できていません";
         }
         
     });

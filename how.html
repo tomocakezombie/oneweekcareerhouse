@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>KKI-端末確認サイト 使い方ガイド</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+      line-height: 1.8;
+      margin: 0;
+      background: #f7fafc;
+      color: #222;
+    }
+    .container {
+      max-width: 800px;
+      margin: 32px auto 32px auto;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px #0001;
+      padding: 36px 28px 32px 28px;
+    }
+    h1 {
+      color: #3979b8;
+      font-size: 2.1em;
+      margin-top: 0;
+      margin-bottom: 0.5em;
+      letter-spacing: 0.05em;
+      text-align: center;
+    }
+    h2 {
+      color: #3979b8;
+      font-size: 1.25em;
+      margin-top: 2.2em;
+      margin-bottom: 0.7em;
+      border-left: 6px solid #3979b8;
+      padding-left: 0.5em;
+      background: #f0f6fa;
+      border-radius: 4px;
+    }
+    nav.toc {
+      background: #eaf3fa;
+      border: 1.5px solid #b3d0ea;
+      border-radius: 8px;
+      padding: 1.2em 1.5em 1.2em 1.5em;
+      margin-bottom: 2.5em;
+      box-shadow: 0 2px 8px #b3d0ea33;
+    }
+    nav.toc h2 {
+      font-size: 1.1em;
+      color: #3979b8;
+      border: none;
+      background: none;
+      margin: 0 0 0.5em 0;
+      padding: 0;
+    }
+    nav.toc ul {
+      margin: 0;
+      padding-left: 1.2em;
+    }
+    nav.toc li {
+      margin-bottom: 0.3em;
+    }
+    nav.toc a {
+      color: #3979b8;
+      text-decoration: none;
+      font-weight: bold;
+      transition: color 0.2s;
+    }
+    nav.toc a:hover {
+      color: #23527c;
+      text-decoration: underline;
+    }
+    ul, ol {
+      margin-bottom: 1.5em;
+      margin-top: 0.5em;
+    }
+    ul li, ol li {
+      margin-bottom: 0.5em;
+    }
+    .faq-q {
+      color: #3979b8;
+      font-weight: bold;
+      margin-top: 1.2em;
+    }
+    .faq-a {
+      margin-left: 1.2em;
+      margin-bottom: 0.7em;
+    }
+    hr {
+      margin: 2em 0;
+      border: none;
+      border-top: 1.5px solid #b3d0ea;
+    }
+    .contact-box {
+      background: #eaf3fa;
+      border: 1.5px solid #b3d0ea;
+      border-radius: 8px;
+      padding: 1.2em 1.5em;
+      margin-top: 2.5em;
+      text-align: center;
+      font-size: 1.05em;
+    }
+    @media (max-width: 600px) {
+      .container { padding: 10px 2vw; }
+      h1 { font-size: 1.3em; }
+      h2 { font-size: 1em; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div style="margin-bottom:18px; text-align:left;">
+      <a href="index.html" style="color:#3979b8; text-decoration:none; font-weight:bold; font-size:1.05em;">&larr; トップページに戻る</a>
+    </div>
+    <h1>KKI-端末確認サイト 使い方ガイド</h1>
+    <p style="text-align:center; margin-bottom:2em;">このサイトは、キャリアハウス活動のための端末利用状況をリアルタイムで確認できるWebサービスです。</p>
+    <!-- 目次 -->
+    <nav class="toc">
+      <h2>目次</h2>
+      <ul>
+        <li><a href="#features">主な機能</a></li>
+        <li><a href="#view">画面の見方</a></li>
+        <li><a href="#usage">使い方</a></li>
+        <li><a href="#faq">よくある質問</a></li>
+        <li><a href="#contact">制作・運用</a></li>
+      </ul>
+    </nav>
+    <h2 id="features">主な機能</h2>
+    <ul>
+      <li>端末の利用状況を一覧表示</li>
+      <li>直近1週間の利用ランキング表示</li>
+      <li>授業予定の確認（lww連携）</li>
+      <li>利用率や混雑状況の可視化</li>
+    </ul>
+    <h2 id="view">画面の見方</h2>
+    <ul>
+      <li><b>ヘッダー</b>：サイト名・ナビゲーション</li>
+      <li><b>端末一覧テーブル</b>：各端末の利用状況（色で区別）<br>
+  <span style="color:#FF9933;font-weight:bold;">オレンジ</span>：使用中 ／
+  <span style="color:#9696dd;font-weight:bold;">水色</span>：空き ／
+  <span style="color:#FFD700;font-weight:bold;">金</span>・
+  <span style="color:#C0C0C0;font-weight:bold;">銀</span>・
+  <span style="color:#CD7F32;font-weight:bold;">銅</span>：ランキング上位3人
+      </li>
+      <li><b>ランキング</b>：1週間の利用時間上位10名を表示</li>
+      <li><b>授業予定</b>：lwwの授業予定を表示</li>
+      <li><b>フッター</b>：連絡先など</li>
+    </ul>
+    <h2 id="usage">使い方</h2>
+    <ol>
+      <li>サイトにアクセスすると、端末の利用状況が自動で更新されます。</li>
+      <li>上部メニューから「KKI Living Guide」や「このサイトについて」に移動できます。</li>
+      <li>端末テーブルの色で空き状況やランキング上位者の利用が一目で分かります。</li>
+      <li>下部のランキングで、直近1週間の利用上位者を確認できます。</li>
+      <li>授業予定も下部iframeで確認できます。</li>
+    </ol>
+    <h2 id="faq">よくある質問</h2>
+    <div class="faq-q">Q. データはどのくらいの頻度で更新される？</div>
+    <div class="faq-a">5秒ごとに自動更新されます。</div>
+    <div class="faq-q">Q. 問い合わせ先は？</div>
+    <div class="faq-a">フッター記載のメールアドレスまでご連絡ください。</div>
+    <div class="contact-box" id="contact">
+      <b>制作・運用：</b>山梨大学キャリアハウス活動<br>
+      お問い合わせ: <a href="mailto:kki-crew@ml.yamanashi.ac.jp" style="color:#3979b8;">kki-crew@ml.yamanashi.ac.jp</a>
+    </div>
+  </div>
+</body>
+</html>

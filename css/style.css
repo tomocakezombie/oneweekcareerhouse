@@ -108,6 +108,50 @@ main{
   font-weight: bold;
   color: #fff;
 }
-/* .table-responsive{
-  overflow-x: auto;
-} */
+
+/* ヘッダー全体 */
+.header {
+  background: #3979b8;
+  color: #fff;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* サイト名 */
+.header h1 {
+  margin: 0;
+  font-size: 2.0em;
+  letter-spacing: 0.1em;
+}
+
+/* ナビゲーション */
+.header nav {
+  display: flex;
+  gap: 20px;
+}
+
+.header nav a {
+  color: #fff;
+  text-decoration: none;
+  font-weight: bold;
+  padding: 4px 10px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.header nav a:hover {
+  background: #3979b8;
+}
+
+.footer {
+  background: #3979b8;
+  color: #fff;
+  text-align: center;
+  padding: 16px 0;
+  margin-top: 40px;
+  font-size: 1.0em;
+  letter-spacing: 0.05em;
+}
