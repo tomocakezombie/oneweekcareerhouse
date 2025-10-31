@@ -1,0 +1,50 @@
+/* 端末スタイルの定義 */
+.computers:focus {
+  outline: 3px solid #ff9800;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px #ffd18088;
+  z-index: 3;
+}
+.computers .status-icon {
+  font-size: 1.2em;
+  margin-right: 2px;
+  vertical-align: middle;
+}
+
+/* 端末セルの色変化 */
+.computers, #terminal-table td, #terminal-table th {
+  transition: background-color 0.5s cubic-bezier(.4,0,.2,1), color 0.3s, transform 0.2s;
+}
+
+.computers{
+   border: 2px solid black ; /* 各セルの枠線 */
+}
+
+td {
+  border: 2px solid rgb(253, 253, 253) ;
+  padding: 10px; 
+  text-align: center; 
+} 
+
+td:empty {
+  border: none;
+}
+
+#terminal-table td, #terminal-table th {
+  transition: background 0.3s, color 0.3s, transform 0.2s;
+}
+
+#terminal-table td:hover {
+  background: #e3f1ff !important;
+  transform: scale(1.05);
+  z-index: 2;
+  position: relative;
+}
+
+#terminal-table {
+  background: #f7fafc;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px #3979b81a;
+  animation: fadein 1.3s;
+}
