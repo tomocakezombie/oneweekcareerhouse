@@ -1,0 +1,63 @@
+/* ランキングテーブルの定義 */
+
+#weekly-ranking table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  background: #fffbe7;
+  box-shadow: 0 2px 8px #e0e0e0;
+  font-size: 1.1em;
+}
+
+#weekly-ranking th, #weekly-ranking td {
+  border: 1px solid #e0c97f;
+  padding: 8px 12px;
+  text-align: center;
+}
+
+#weekly-ranking th {
+  background: #ffe082;
+  color: #7c5c00;
+}
+
+#weekly-ranking tr:nth-child(even) {
+  background: #fffde7;
+}
+
+#weekly-ranking tr:hover {
+  background: #ffe082;
+  transition: background 0.2s;
+}
+
+#weekly-ranking .rank-1 {
+  background: #ffd700 !important;
+  font-weight: bold;
+  color: #b8860b;
+}
+
+#weekly-ranking .rank-2 {
+  background: #c0c0c0 !important;
+  font-weight: bold;
+  color: #555;
+}
+
+#weekly-ranking .rank-3 {
+  background: #cd7f32 !important;
+  font-weight: bold;
+  color: #fff;
+}
+
+/* ランキング4～10位の特別色 */
+#weekly-ranking tr.rank-4-10, #weekly-ranking tbody tr.rank-4-10 {
+  background: #e3f1ff !important;
+  color: #543d80 !important;
+  font-weight: bold !important;
+}
+
+#weekly-ranking table {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px #b3d0ea33;
+  animation: none !important;
+  transition: none !important;
+}

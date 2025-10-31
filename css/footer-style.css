@@ -1,0 +1,14 @@
+/* フッター定義 */
+
+.footer {
+  background: linear-gradient(90deg, #5fa8d3 100%, #3979b8 60%);
+  color: #fff;
+  text-align: left;
+  padding: 18px 0;
+  margin-top: 48px;
+  font-size: 1.05em;
+  letter-spacing: 0.05em;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -2px 12px rgba(57,121,184,0.10);
+  animation: fadein 1.2s;
+}

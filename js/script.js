@@ -6,6 +6,10 @@ let top10Users = [];
 const top3Colors = ["#FFD700", "#C0C0C0", "#CD7F32"]; // 金・銀・銅
 const rank4_10Color = "#543d80"; // 4～10位の紫色
 
+// ランキング更新時のアニメーションを有効にするか（falseで無効）
+// 開発・運用の都合でアニメーションを切りたい場合は false に設定してください。
+const RANKING_ANIMATION_ENABLED = false;
+
 document.addEventListener("DOMContentLoaded", function() {
     generateTable().then(() => {
         fetchData();
@@ -53,13 +57,30 @@ function fetchAndDisplayRanking() {
           <td>${u.time}</td>
         </tr>`;
       }).join('');
-      document.getElementById('weekly-ranking').innerHTML =
-        `<table>
-          <thead>
-            <tr><th>順位</th><th>ユーザ名</th><th>累計時間</th></tr>
-          </thead>
-          <tbody>${rankingHtml}</tbody>
-        </table>`;
+      const weeklyEl = document.getElementById('weekly-ranking');
+      // アニメーション無効フラグがある場合は一時的にアニメーション/トランジションを切る
+      if (weeklyEl && !RANKING_ANIMATION_ENABLED) {
+        // 既存のインライン値は保存せず、短時間だけ none を挿入してから復元する簡易方式
+        weeklyEl.style.transition = 'none';
+        weeklyEl.style.animation = 'none';
+      }
+      if (weeklyEl) {
+        weeklyEl.innerHTML =
+          `<table>
+            <thead>
+              <tr><th>順位</th><th>ユーザ名</th><th>累計時間</th></tr>
+            </thead>
+            <tbody>${rankingHtml}</tbody>
+          </table>`;
+
+        if (!RANKING_ANIMATION_ENABLED) {
+          // 少し待ってからインラインの none を解除（CSS 側のトランジションを再度有効にする）
+          setTimeout(() => {
+            weeklyEl.style.transition = '';
+            weeklyEl.style.animation = '';
+          }, 50);
+        }
+      }
     })
     .catch(err => {
       document.getElementById('weekly-ranking').textContent = 'ランキングの取得に失敗しました';
