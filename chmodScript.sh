@@ -1,7 +1,7 @@
 # すべてのファイルの権限を公開用に変更するスクリプト
 
 # htmlファイルの権限
-chmod 744 index.html
+chmod 744 *.html
 
 # テキストファイルの権限
 chmod 744 *.txt
