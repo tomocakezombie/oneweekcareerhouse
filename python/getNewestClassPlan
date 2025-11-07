@@ -1,0 +1,65 @@
+#!/usr/bin/python3
+
+"""
+file        getNewestClassPlan
+version     ?
+author      t23cs014 t23cs048 t23cs050
+brief       lwwで公開されている授業計画の中で最新のものを取得し保存する.
+"""
+
+import os
+
+# 基準の年度
+base_year = 2023
+
+# 作成するファイル
+make_file = "../newest_class_plan.html"
+
+# 作成するファイルに与える権限
+file_permission = 0o744
+
+def get_newest_class_plan():
+    
+    # 最新の授業計画ファイルパス
+    latest_file = ""
+
+    # ループで使用する年度
+    year = base_year
+
+    # 授業計画のhtmlファイルの中で最新のものを探す
+    while True:
+        try:
+            dir_path = "/edu/misc/"
+            for i in range(0, 2):
+                alphabet = chr(ord('a') + i)
+                html_file = f"{dir_path}/class{year}{alphabet}.html"
+
+                if not os.path.exists(html_file):
+                    return latest_file
+
+                latest_file = html_file
+
+            year += 1
+
+        finally:
+            print(f"Checked class plans up to year: {year - 1}")
+
+if __name__ == "__main__":
+    newest_class_plan_file_path = get_newest_class_plan()
+
+    if newest_class_plan_file_path == "":
+        print("No class plan file found.")
+        exit()
+    
+    try:
+        with open(newest_class_plan_file_path, 'r', encoding='utf-8') as file:
+            content = file.read()
+            with open(make_file, 'w', encoding='utf-8') as output_file:
+                output_file.write(content)
+                os.chmod(make_file, file_permission)
+
+    except Exception as e:
+        print(f"Error reading class plan file: {e}")
+
+    finally:
+        print("Finished attempting to read the class plan file.")
