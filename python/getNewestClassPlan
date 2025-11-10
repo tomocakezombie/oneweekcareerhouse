@@ -13,7 +13,7 @@ import os
 base_year = 2023
 
 # 作成するファイル
-make_file = "../newest_class_plan.html"
+make_file = "/home/assist/local_html/seat/newest_class_plan.html"
 
 # 作成するファイルに与える権限
 file_permission = 0o744

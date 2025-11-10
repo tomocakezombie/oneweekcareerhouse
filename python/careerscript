@@ -13,9 +13,9 @@ brief       一種間チャンネルキャリアハウス
 # output_log_file_path = "/home/t23cs014/local_html/test/careea/oneweekcareerhouse/seat_log.txt"
 # output_weekly_login_path = "/home/t23cs014/local_html/test/careea/oneweekcareerhouse/weekly_login_time.txt"
 
-output_file_path = "../seat_output.txt"
-output_log_file_path = "../seat_log.txt"
-output_weekly_login_path = "../weekly_login_time.txt"
+output_file_path = "/kkihome/home/assist/local_html/seat/seat_output.txt"
+output_log_file_path = "/kkihome/home/assist/local_html/seat/seat_log.txt"
+output_weekly_login_path = "/kkihome/home/assist/local_html/seat/weekly_login_time.txt"
 
 ############################################################
 
