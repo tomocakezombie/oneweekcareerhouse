@@ -11,12 +11,15 @@ const rank4_10Color = "#543d80"; // 4～10位の紫色
 const RANKING_ANIMATION_ENABLED = false;
 
 document.addEventListener("DOMContentLoaded", function() {
-    generateTable().then(() => {
-        fetchData();
+    // まず threads.json から静的端末数を読み込んでから初期化を行う
+    loadTotalTerminals().finally(() => {
+        generateTable().then(() => {
+            fetchData();
+        });
+        setInterval(fetchData, 5000);
+        fetchAndDisplayRanking();
+        setInterval(fetchAndDisplayRanking, 5000);
     });
-    setInterval(fetchData, 5000);
-    fetchAndDisplayRanking();
-    setInterval(fetchAndDisplayRanking, 5000);
 });
 
 // weekly_login_time.txtを読み込んでランキングを表示
@@ -94,7 +97,7 @@ function timeToSeconds(timeStr) {
 }
 
 
-
+let totalTerminals = 0;
   // 座席の表示(一回のみ実行させる)
   function generateTable() {
     const table = document.getElementById("terminal-table");// テーブルの要素を取得
@@ -103,6 +106,7 @@ function timeToSeconds(timeStr) {
     .then(response => response.json())// レスポンスをJSON形式に変換
     .then(data => {// データを処理
       const terminals = data; // 修正: terminalsをdataから取得
+      let createdCount = 0;
       terminals.forEach(rowData => {
         const row = document.createElement("tr");// 新しい行を作成
         rowData.forEach(id => {
@@ -202,7 +206,8 @@ function timeToSeconds(timeStr) {
         // 使用率を表示
         const using_rate = document.getElementById("using_rate");
         const comment = document.getElementById("comment");
-        let rate = sum_using / (sum_using + sum_empty) * 100;
+        // 分母は threads.json から決めた totalTerminals を優先して使用
+        let rate = totalTerminals > 0 ? (sum_using / totalTerminals * 100) : 0;
         if (using_rate && comment) {
             using_rate.textContent = rate.toFixed(2);
             if(rate > 60){
@@ -226,4 +231,29 @@ function timeToSeconds(timeStr) {
         
     });
 
+}
+
+// threads.json から NULL を除いた端末数を読み込んで totalTerminals を固定する
+function loadTotalTerminals() {
+  return fetch('seat_data.json?nocache=' + new Date().getTime())
+    .then(response => response.json())
+    .then(data => {
+      // data は配列の配列を想定 (例: [ [id,id,...], ... ])
+      let cnt = 0;
+      if (Array.isArray(data)) {
+        data.forEach(row => {
+          if (Array.isArray(row)) {
+            row.forEach(id => { if (id) cnt++; });
+          } else if (row) {
+            // まれに一段配列の場合
+            cnt++;
+          }
+        });
+      }
+      totalTerminals = cnt;
+      console.log("totalTerminals =", totalTerminals);
+    })
+    .catch(err => {
+      console.error("threads.json の取得に失敗:", err);
+    });
 }
