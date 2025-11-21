@@ -1,0 +1,253 @@
+/* ***********************************
+   KKI Systm 時刻表 ページのcss
+	  original data: kki-lww.css
+		modified_by: yoshi
+		
+   参照本体 /edu/misc/class201?{a,b}.html
+*********************************** */
+
+/* === ================================== */
+
+@charset "UTF-8";
+
+body { 
+  margin: 10px;
+  padding: 0;
+  font-size: medium;
+  /* 真っ黒より微黒(灰色)の方が見やすい */
+  color: #444444;  
+}
+
+h1 {
+  background-color: #007000;
+  color: white;
+  font-size: 1.5em;
+  font-weight: normal;
+  padding: 1px;
+}
+
+h2 { 
+  color: #FF4400;
+  font-size: 1em;
+  font-weight: normal;
+}
+
+ul {  
+  padding-left: 18px;
+  margin-bottom: 0px;
+}
+
+li { 
+  margin-bottom: 5px;
+}
+
+hr {  
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+a {  
+  /*text-decoration: none;*/
+}
+
+/* 開講対象クラスによるコマの基本設定分け */
+/*    cs1年～4年，KM過年度＆KM院，未使用 */
+/*	背景色設計はいい加減（緑寄り，青寄り，赤寄り，紫，灰，白）  */
+/*	縦方向は上揃え．横方向は中央揃え（科目名＆教材だけ subjectで右揃え）*/
+
+td.cs1 {
+	width:	160px;
+	vertical-align:	top;
+	text-align: center;
+  	background-color: #C7F700 ;  /* 緑寄り */
+  	color: black;
+}
+
+td.cs2 {
+	width:	160px;
+	vertical-align:	top;
+	text-align: center;
+   	background-color: #60EAFF; /* 青寄り */
+  	color: black;
+}
+
+td.cs3 {
+	width:	160px;
+	vertical-align:	top;
+	text-align: center;
+  	background-color: #FF9F30 ; /* 橙寄り */
+  	color: black;
+}
+
+td.cs4 {
+	width:	160px;
+	vertical-align:	top;
+	text-align: center;
+  	background-color: #EE82EE; /* violet */
+  	color: black;
+}
+
+td.km {
+	width:	160px;
+	vertical-align:	top;
+	text-align: center;
+  	background-color: #DDDDDD;
+  	color: black;
+}
+
+td.grad {
+	width:	160px;
+	vertical-align:	top;
+	text-align: center;
+  	background-color: #DDDDDD;
+  	color: black;
+}
+
+td.no {
+	width:	160px;
+	vertical-align:	top;
+	text-align: center;
+  	background-color: #FFFFFF;
+  	color: black;
+}
+
+td.cs {
+	width:	160px;
+	vertical-align:	top;
+	text-align: center;
+  	background-color: #DDFEDD;
+  	color: black;
+}
+
+/* === フォント系属性群 ================================== */
+
+/* 自習用端末表記 */
+.self {
+	color: #8B0000;	/* darkred */
+	font-size: 0.90em;
+	font-weight: bold;
+}
+
+/* 赤太文字 */
+.red-text { 
+  	color: #FF0000;
+	font-weight: bold;
+}
+
+
+/* 緑文字 臨時開講日に使用 */
+.extra {  
+  	color: #008000;
+	font-weight: bold;
+	text-align: left;
+}
+
+/* 「(学内からのみ・・・)」で使用 */
+.access { 
+  float: right;
+}
+
+.new {
+  color: #FF0000;
+  border: 2px dotted #FF0000;
+  margin-right: 2px;
+}	
+
+/* 科目名　*/
+.subject {
+	text-align: left;
+	font-weight: bold;
+}	
+
+/* 対象クラス　*/
+.students {
+	font-weight: normal;
+}	
+.students:before {
+	content:"[";
+	font-weight: normal;
+}
+.students:after {
+	content:"]";
+	font-weight: normal;
+}
+
+/* 担当教員名　*/
+.teacher {
+	font-weight: bold;
+}	
+.teacher:before {
+	content:"(";
+	font-weight: normal;
+}
+.teacher:after {
+	content:")";
+	font-weight: normal;
+}
+
+/* 各項目のタイトル */
+.content-title {
+  border: solid 1px #FF0000;
+  padding: 0.5px;
+}	
+
+/* 各項目 */
+.content { 
+  clear: both;
+  border-bottom: 2px solid #007000;
+  padding-bottom: 5px;
+  margin-left: 3px;
+}
+
+/* 各項目の中での項目 */
+/*   もっと良い言い回しはないものか、、、 */
+.item {  
+  padding-left: 13px;
+  padding-bottom: 10px;
+  /*margin-left: 13px;
+  margin-bottom: 10px;*/
+}
+
+/* 各項目のタイトル左の四角の色付け */
+.square-left { 
+  color:  #007000;
+}
+
+.square-center { 
+  color:  #00A000;
+}
+
+.square-right { 
+  color:  #00E000;
+}
+
+/* CLASS_TABLE configurations */
+
+/*   表頭と表側 */
+th.top {
+	/* width:	21%; */
+  	background-color: #A0A0A0;
+	vertical-align:	middle;
+  	color: white;
+  	font-size:	1.5em;
+	white-space:	nowrap;
+}
+
+th.side {
+	height:	100px;
+	width:	20px;
+  	background-color: #A0A0A0;
+	vertical-align:	middle;
+  	color: white;
+  	font-size:	1.5em;
+}
+
+@media print {
+	body {
+	  /* for chrome */
+	  width: 100%;
+	  /* for chrome */
+	  /* min-width: auto !important; */
+	}
+  }
+  
