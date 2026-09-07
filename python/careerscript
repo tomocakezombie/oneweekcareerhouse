@@ -38,15 +38,28 @@ hostname+=(["nw"+str(i).zfill(2) for i in range(1,13)]) # nw01~nw12を指定す�
 hostname+=(["zw"+str(i).zfill(2) for i in range(1,4)]) # zw01~zw03を指定する
 hostname.remove("zw02") # Windows端末のため
 
+# last で取得する履歴の範囲．週間ランキングに必要な 1 週間分だけ読む(wtmp 全件を読まない)
+LAST_SINCE = "-7days"
+
+# ssh の接続オプション．鍵認証のみ(パスワード入力で止まらない)，接続・生存確認のタイムアウトを設ける
+SSH_OPTIONS = [
+    "-o", "BatchMode=yes",
+    "-o", "ConnectTimeout=10",
+    "-o", "ServerAliveInterval=15",
+    "-o", "ServerAliveCountMax=2",
+]
+
+# ホストの再接続待ち時間(秒)．失敗が続くと RECONNECT_WAIT_MAX まで伸ばす
+RECONNECT_WAIT = 10
+RECONNECT_WAIT_MAX = 60
+
 # ここから下はスクリプトです
 
 import getpass
-import re # 正規表現を使うためのライブラリ
 import subprocess # シェルコマンドを実行するためのライブラリ
 import datetime # 日時を取得するためのライブラリ
 import socket # ホスト名を取得するために使用
 import threading # スレッドを使うためのライブラリ
-import locale # 地域を使うため
 import os # プロセスIDを取得するため
 import argparse # コマンドライン引数を取得するため
 import time # 時間を取得するため
@@ -67,139 +80,221 @@ arg = argparse.ArgumentParser(
 """
                 )
 arg.add_argument('-thread','--thread',action='store_true',help='現在ログインしている端末のみを対象にします。開発者用オプションです')
-arg.add_argument('-i','--interval',type=int,default=4,help='ログの取得間隔を指定します。デフォルトは5秒です。')
-arg.add_argument('-p','--pinter',type=int,default=4,help='画面更新間隔を指定します。デフォルトは5秒です。')
+arg.add_argument('-i','--interval',type=int,default=4,help='ログの取得間隔を指定します。デフォルトは4秒です。')
+arg.add_argument('-p','--pinter',type=int,default=4,help='画面更新間隔を指定します。デフォルトは4秒です。')
 arg.add_argument('-d','--detail',action='store_true',help='標準出力画面にも詳細な出力を載せます')
 arg.add_argument('-rank',action='store_true',help='一週間のログイン時間ランキングを更新します')
 opt=arg.parse_args()
 
 
 #グローバルに使うやつ
-result=[]
-error=0
-errorlog=[]
-firstdata=[]
-for i in range(0,len(hostname)):
-    firstdata.append([]) #各端末ごとにデータを格納するリスト
-    firstdata[i] = [] #各端末ごとにデータを格納するリスト
-errordata=[""]*len(hostname) #主に並列処理の標準エラー出力の格納に使われます
+# 各端末の最新スナップショット(データ行のフィールドのリスト)．端末側は毎回 last の全結果を送ってくるので，
+# 行を積み上げるのではなく，スナップショット単位で丸ごと置き換える(重複や取りこぼしが起きない)
+latest=[[] for _ in hostname]       # 端末ごとの確定済みスナップショット
+latest_time=[0.0]*len(hostname)     # スナップショットを受け取った時刻(time.monotonic)
+pending=[[] for _ in hostname]      # 受信途中のスナップショット
 proclist=[] #プロセスリスト
-locale.setlocale(locale.LC_TIME,"en_US.UTF-8")
+proclist_lock=threading.Lock()
+shutting_down=threading.Event() # 終了処理中は切断ログを出さない
+
+# 端末側 -> 収集側 の 1 行の形式(カンマ区切り)
+#   データ行   : 送信時刻,端末名,tty,ログイン時刻,ログアウト時刻または logged,利用秒数,ユーザ名
+#   ログ行     : 送信時刻,端末名,Program Log,Error-0xNN : メッセージ
+#   区切り行   : 送信時刻,端末名,Snapshot End,データ行数
+FIELD_DATA_LEN = 7
+KIND_LOG = "Program Log"
+KIND_SNAPSHOT_END = "Snapshot End"
+
+def now_str():
+    # PHP 側が 'Y-m-d H:i:s.u' でパースするので，マイクロ秒を必ず 6 桁で出す
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+
+def program_log_line(code, message):
+    # メッセージ中のカンマや改行は行の形式を壊すので潰す
+    message = str(message).replace(",", ";").replace("\r", " ").replace("\n", " ")
+    return f"{now_str()},{name.split('.')[0]},{KIND_LOG},{code} : {message}\n"
+
+def write_atomic(path, text):
+    # 一時ファイルに書いてから rename する．読み手(PHP/JS)が書き込み途中の空ファイルを見ないようにする
+    try:
+        mode = os.stat(path).st_mode & 0o777 # 既存ファイルの権限を引き継ぐ(umask 077 でも公開可能なまま)
+    except FileNotFoundError:
+        mode = 0o644
+    tmp = f"{path}.{os.getpid()}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(text)
+        f.flush()
+        os.fsync(f.fileno())
+    os.chmod(tmp, mode)
+    os.replace(tmp, path)
 
 def find_my_sessions():
-    current_user = getpass.getuser()    # 現在のユーザー名を取得
-    who_output = subprocess.check_output(['who']).decode('utf-8').strip().splitlines()    # 'who' コマンドを実行して現在ログインしているユーザーを取得
-    logged_in_users = [line.split()[0] for line in who_output]    # ログインしているユーザーのリストを作成
-    my_sessions = [user for user in logged_in_users if user == current_user]    # 自分のユーザー名が複数回出現するか確認
-    if len(my_sessions) > 1:
-        return
-    else:
-        service = "systemctl --user stop tracker-miner-fs-3.service "
-        subprocess.Popen(service,shell= True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,stdin=subprocess.PIPE) # SSHして所定のコマンドを実行
+    try:
+        current_user = getpass.getuser()    # 現在のユーザー名を取得
+        who_output = subprocess.check_output(['who']).decode('utf-8').strip().splitlines()    # 'who' コマンドを実行して現在ログインしているユーザーを取得
+        logged_in_users = [line.split()[0] for line in who_output if line.split()]    # ログインしているユーザーのリストを作成
+        my_sessions = [user for user in logged_in_users if user == current_user]    # 自分のユーザー名が複数回出現するか確認
+        if len(my_sessions) > 1:
+            return
+        else:
+            service = "systemctl --user stop tracker-miner-fs-3.service "
+            subprocess.Popen(service,shell= True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,stdin=subprocess.DEVNULL)
+    except Exception:
+        pass # 監視の本筋ではないので失敗しても無視する
 
+def is_iso_datetime(text):
+    try:
+        datetime.datetime.fromisoformat(text)
+        return True
+    except ValueError:
+        return False
+
+def parse_last_line(raw, myhost, now):
+    """last の 1 行を解析してデータ行のフィールド(送信時刻を除く)を返す．対象外の行は None"""
+    line = raw.strip()
+    if not line:
+        return None
+    # セッションではない行を除外 (再起動，異常終了，"gone - no logout"，"wtmp begins ...")
+    if "gone - no logout" in line or line.startswith("wtmp begins") or " crash" in line or " down" in line:
+        return None
+    parts = line.split()
+    if len(parts) < 4:
+        return None
+    user, tty = parts[0], parts[1]
+    if user in ("reboot", "shutdown", "runlevel"):
+        return None
+    if ":" not in tty and "tty" not in tty: # 実機(X の :1 や tty)以外(pts など)は排除
+        return None
+    # 3 列目(接続元ホスト)は tty 切り替えログイン等で空になることがあるので，位置ではなく ISO 時刻を探す
+    times = [(idx, p) for idx, p in enumerate(parts[2:], start=2) if is_iso_datetime(p)]
+    if not times:
+        raise ValueError("login time not found")
+    login_str = times[0][1]
+    logintime = datetime.datetime.fromisoformat(login_str).astimezone(datetime.timezone.utc)
+    # ログイン中の表記は "still logged in" と "still running" の両方がある
+    if "still" in parts:
+        logout_str = "logged"
+        delta = now - logintime
+    else:
+        if len(times) < 2:
+            raise ValueError("logout time not found")
+        logout_str = times[1][1]
+        logouttime = datetime.datetime.fromisoformat(logout_str).astimezone(datetime.timezone.utc)
+        delta = logouttime - logintime
+    usingtime = str(int(delta.total_seconds()))
+    # ex) zw03,:1,2025-04-22T11:50:35+09:00,2025-04-22T12:44:30+09:00,3235,t23cs014
+    return [myhost, tty, login_str, logout_str, usingtime, user]
+
+def send(text):
+    # SSH クライアント(収集側)へ送る．接続が切れていたら静かに終了する
+    try:
+        sys.stdout.write(text)
+        sys.stdout.flush()
+    except (BrokenPipeError, OSError):
+        os._exit(0)
 
 # SSH接続先でのデータ取得用
 def getData():
-    ppid=int(os.getppid()) # 親プロセスのIDを取得
+    ppid=int(os.getppid()) # 親プロセスのIDを取得(収集側の ssh が切れると親が変わる)
     find_my_sessions() # 現在のユーザーが複数回ログインしているか確認
-    timeout = int(opt.interval)*1000*2 # タイムアウト時間を設定
+    myhost = name.split(".")[0]
+    env = dict(os.environ, LC_ALL="C") # last の出力言語を固定する(日本語ロケールだと "still logged in" が変わる)
+    interval = max(1, int(opt.interval))
 
     while True: # 一定時間ごとにデータを取得する部分
-        who = subprocess.Popen("last --time-format=iso -w | grep -Ev 'gone|begin|reboot|crash|down'", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        who_output, who_error = who.communicate()
-        who = who_output.decode('utf-8').strip().splitlines() # 現在ログイン中のユーザーの確認
-        senddata:str="" # 送信データ
-        # print(who)
+        senddata = ""
+        count = 0
         try:
-            if len(who) < 1:
-                time.sleep(opt.interval) # 指定された時間待機
-                continue
-            count = 0
-            for line in who: # 出力結果を解析
-                if count>20: # 負荷が高いため出力数を制御
-                    continue
-                line = re.sub('\t', ',', line)  # 複数の空白を一つの空白に置き換える
-                line = re.sub(' +', ' ', line)  # 複数の空白を一つの空白に置き換える
-                line = line.split(" ") # スペースで区切る
-
-                if not ":"in line[1] and not "tty" in line[1]: # 実機じゃなければ排除
-                    continue
-
-
-                delta = 0
-                try: # tty切り替えでログインする方への対策
-                    datetime.datetime.fromisoformat(line[2]).astimezone(datetime.timezone.utc) # ログアウト時刻を取得 (aware datetime)
-                    line.insert(2," ")
-                except:
-                    pass
-                now = datetime.datetime.now(datetime.timezone.utc) # 現在時刻を取得 (aware datetime)
-                logintime = datetime.datetime.fromisoformat(line[3]).astimezone(datetime.timezone.utc) # ログイン時刻を取得 (aware datetime)
-                if "logged" in line: # ログイン中の場合
-                    delta = now - logintime # ログイン時刻からの経過時間を取得
-                else:
-                    count+=1 # ログイン履歴のみ動かす
-                    logouttime = datetime.datetime.fromisoformat(line[5]).astimezone(datetime.timezone.utc) # ログアウト時刻を取得 (aware datetime)
-                    delta = logouttime - logintime # ログイン時刻からの経過時間を取得
-                usingtime = str(int(delta.total_seconds())) # 経過時間を取得
-                # print(usingtime)
-                hostname = socket.gethostname().split(".")[0]  # ホスト名を取得
-                line = [hostname,line[1],line[3],line[5],usingtime,line[0]] # ex) zw03,:1,2025-04-22T11:50:35+09:00,2025-04-22T12:44:30+09:00,3235
-                senddata=senddata+str(datetime.datetime.now())+","+",".join(line)+"\n" # データを送信データに追加 ex)2025-04-26 17:01:37.180993,zw03,:1,2025-04-22T11:50:35+09:00,2025-04-22T12:44:30+09:00,3235
-
-            if senddata!="": # 送信すべきデータが存在する場合
-                print(senddata,end="",flush=True) # データをSSHクライアントに送信
-            time.sleep(opt.interval //2) # 指定された時間待機
-            if ppid!=int(os.getppid()): # ユーザーのSSH接続が切れた場合（何故かrootのsshdに持っていかれ，終了しないため，このように対処）
-                senddata=senddata+str(datetime.datetime.now())+","+name.split(".")[0]+",Program Log,Error-0x01 : Parent Process is terminated\n" # 万が一生きていた時のためにログを残す
-                print(senddata,end="",flush=True) # ログをSSHクライアントに送信
-                sys.exit(0) # プロセスを終了
+            proc = subprocess.run(["last", "-w", "--time-format=iso", "-s", LAST_SINCE],
+                                  env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=interval*5)
+            if proc.returncode != 0:
+                senddata += program_log_line("Error-0x02", "last failed: " + proc.stderr.decode("utf-8", "replace").strip())
+            who = proc.stdout.decode("utf-8", "replace").splitlines()
         except Exception as e:
-            logger("Error-0x02 : "+str(e)) # エラーログをファイルに出力
-            logger("Error-0x02 : "+str(line)) # エラーログをファイルに出力
-            logger("Error-0x02 : "+str(e.with_traceback())) # エラーログをファイルに出力
-            senddata=senddata+str(datetime.datetime.now())+","+name.split(".")[0]+",Program Log,Error-0x02 : "+str(e.with_traceback)+'\n' # エラーログを吐く
-            print(senddata,end="",flush=True) # ログをSSHクライアントに送信
+            senddata += program_log_line("Error-0x02", f"last failed: {e}")
+            who = []
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        for line in who: # 出力結果を解析．1 行の失敗はその行だけ捨てて続ける
+            try:
+                fields = parse_last_line(line, myhost, now)
+            except Exception as e:
+                senddata += program_log_line("Error-0x02", f"{e} / {line}")
+                continue
+            if fields is None:
+                continue
+            senddata += now_str() + "," + ",".join(fields) + "\n"
+            count += 1
+        # スナップショットの終わりを知らせる(収集側はこれを受けて置き換える)
+        senddata += f"{now_str()},{myhost},{KIND_SNAPSHOT_END},{count}\n"
+        send(senddata)
+
+        time.sleep(interval) # 指定された時間待機
+        if ppid!=int(os.getppid()): # 収集側の SSH 接続が切れた場合(sshd の子から外れて親が変わる)
+            send(program_log_line("Error-0x01", "Parent Process is terminated"))
             sys.exit(0) # プロセスを終了
 
 # ホストにおけるSSH接続管理のためのスレッド
 def ssh(host,i,lock):
-    global firstdata # 並列処理の標準出力(ログ&データ)の格納用
     whonow_thread=os.path.abspath(__file__)+' -thread -i '+str(opt.interval) # 絶対パスを取得して，SSH接続先で実行するコマンドを作成
+    wait = RECONNECT_WAIT
+    connected = False
     while True:
+        proc = None
+        got_snapshot = False
         try:
-            proc=subprocess.Popen('exec ssh ' + host + ' "'+whonow_thread+'"',shell= True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,stdin=subprocess.PIPE) # SSHして所定のコマンドを実行
-            proclist.append(proc) # プロセスリストに追加(一応)
-            while True:
-                line = proc.stdout.readline().decode('utf-8') # 標準出力を取得．なお何もない場合はここで待機してくれるっぽい
-                with lock: # 出力エリアのロックを取得．データの不一致はロックがなくてもほぼ起こらないが念のため
-                    if line: # もし標準出力があった場合 # 改行で分割
-                        # 3列目の値がユニークかどうかを確認
-                        unique_values = [str(entry[1]+entry[2]+entry[3]+entry[4]) for entry in firstdata[i]]
-                        if str(line.split(",")[1]+line.split(",")[2]+line.split(",")[3]+line.split(",")[4]) not in unique_values:
-                            firstdata[i].append(line.split(",")) # 出力データを格納
-                            # print(firstdata)
-                    if not line and proc.poll() is not None: # もし標準出力がなく，かつプロセスが終了していた場合
-                        for errorline in proc.stderr.readlines(): # エラー出力を取得
-                            errortmp = str(datetime.datetime.now())+",HOST,Program Log,"+"Error-0x03 : "+hostname[i]+" "+errorline.decode('utf-8').replace("\n","")+'\n' # エラーログを吐く
-                            firstdata[i].append(errortmp.split(",")) # エラーログを格納
-                        errorlogtmp = str(datetime.datetime.now())+",HOST,Program Log,"+"Error-0x04 : "+hostname[i]+" is disconnected"+'\n' # エラーログを吐く
-                        firstdata[i].append(errorlogtmp.split(",")) # エラーログを格納
-                        break # ループを抜ける
-        except Exception as e:
-            errorlogtmp = str(datetime.datetime.now())+",HOST,Program Log,"+"Error-0x00 : "+hostname[i]+" "+str(e).replace("\n","")+'\n' # エラーログを吐く
-            firstdata[i] = errorlogtmp.split(",") # エラーログを格納
-            logger(errorlogtmp) # エラーログをファイルに出力
-            logger("Error-0x00 : "+str(e)) # エラーログをファイルに出力
-            logger("Error-0x00 : "+str(line)) # エラーログをファイルに出力
-            logger("Error-0x00 : "+str(e.with_traceback())) # エラーログをファイルに出力
-            time.sleep(10) # クールダウン時間待機
-        time.sleep(10) # 接続エラーのため，クールダウン時間待機して再接続
+            # stderr は stdout にまとめて受け，形式に合わない行としてログに残す(読まずに放置するとパイプが詰まる)
+            proc=subprocess.Popen(["ssh"] + SSH_OPTIONS + [host, whonow_thread],
+                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL)
+            with proclist_lock:
+                proclist.append(proc)
+            for raw in iter(proc.stdout.readline, b""):
+                line = raw.decode('utf-8', 'replace').rstrip("\r\n")
+                fields = line.split(",")
+                kind = fields[2] if len(fields) >= 3 else ""
+                if kind == KIND_SNAPSHOT_END:
+                    with lock:
+                        latest[i] = pending[i]
+                        latest_time[i] = time.monotonic()
+                        pending[i] = []
+                    if not got_snapshot:
+                        got_snapshot = True
+                        if not connected:
+                            connected = True
+                            wait = RECONNECT_WAIT
+                            logger(f"Info : {host} connected")
+                elif kind == KIND_LOG:
+                    logger(f"{host} {line}") # 端末側のプログラムログは収集側のログファイルにだけ残す
+                elif len(fields) >= FIELD_DATA_LEN:
+                    pending[i].append(fields) # 出力データを格納(pending はこのスレッドしか触らない)
+                else:
+                    logger(f"Error-0x03 : {host} {line}") # ssh のエラー出力など，形式に合わない行
+            rc = proc.wait()
+            if connected and not shutting_down.is_set():
+                logger(f"Error-0x04 : {host} is disconnected (rc={rc})")
+        except Exception:
+            logger(f"Error-0x00 : {host} {traceback.format_exc()}")
+        finally:
+            if proc is not None:
+                with proclist_lock:
+                    if proc in proclist:
+                        proclist.remove(proc)
+                if proc.poll() is None:
+                    proc.kill()
+            with lock:
+                pending[i] = []
+                latest[i] = [] # 切断中の端末を「使用中」のまま残さない
+        if connected:
+            connected = False
+        else:
+            wait = min(wait * 2, RECONNECT_WAIT_MAX) # 落ちたままの端末には間隔を伸ばして再接続する
+        time.sleep(wait) # クールダウン時間待機して再接続
 
 def parse_login_data(line):
-    # 例: 2025-04-26 17:01:37.180993,zw03,:1,2025-04-22T11:50:35+09:00,2025-04-22T12:44:30+09:00,3235
+    # 例: 2025-04-26 17:01:37.180993,zw03,:1,2025-04-22T11:50:35+09:00,2025-04-22T12:44:30+09:00,3235,t23cs014
     try:
         parts = line.strip().split(",")
-        if len(parts) < 6:
+        if len(parts) < FIELD_DATA_LEN:
             return None
         hostname = parts[1]
         user = parts[6]
@@ -230,83 +325,77 @@ def calc_weekly_login(result_lines):
     return user_time
 
 def write_weekly_login(user_time, filepath):
-    with open(filepath, "w", encoding="utf-8") as f:
-        for user, total_sec in sorted(user_time.items()):
-            if not user.startswith("t"):  # 追加: sshで始まるユーザはスキップ
-                continue
-            hours = total_sec // 3600
-            minutes = (total_sec % 3600) // 60
-            seconds = total_sec % 60
-            f.write(f"{user},{hours:02}:{minutes:02}:{seconds:02}\n")
+    out = []
+    for user, total_sec in sorted(user_time.items()):
+        if not user.startswith("t"):  # 学生 ID (t で始まる) 以外はランキングに載せない
+            continue
+        hours = total_sec // 3600
+        minutes = (total_sec % 3600) // 60
+        seconds = total_sec % 60
+        out.append(f"{user},{hours:02}:{minutes:02}:{seconds:02}\n")
+    write_atomic(filepath, "".join(out))
 
 #情報の収集
 def collection():
-    ppid=int(os.getppid()) # 親プロセスのIDを取得
-    lock = [] # Initialize lock as an empty list
-    i=0 #各端末ごとにデータを格納するリスト
+    lock = [threading.Lock() for _ in hostname] # 端末毎にロックを作成
     th=[] #各スレッド情報を格納するリスト
-    for host in hostname:
-        lock.append(threading.Lock()) # スレッド毎にロックを作成
-        th.append(threading.Thread(target=ssh,args=(host,i,lock[i],),daemon=True))# ssh(host,i)という命令をスレッドを追加
-        th[i].start()# 実行
-        i=i+1
+    stale_after = max(30, opt.interval * 5) # この秒数を超えて更新のないスナップショットは捨てる(接続が固まった端末対策)
+
     def clean():
-        for p in proclist:
+        with proclist_lock:
+            procs = list(proclist)
+        for p in procs:
             try:
                 p.terminate()  # プロセスを終了
                 p.wait(timeout=2)  # 終了を待つ
             except subprocess.TimeoutExpired:
-                print(f"Process {p.pid} did not terminate, killing it.")
                 p.kill()  # 強制終了
-        sys.exit(0)
-    def signal_handler(sig, frame): # Ctrl+Cで終了するための関数
+            except Exception:
+                pass
+    def signal_handler(sig, frame): # SIGHUP/SIGINT/SIGTERM で終了するための関数
+        shutting_down.set()
+        logger(f"Info : received signal {sig}, exiting")
         clean() # 終了処理を行う
+        os._exit(0)
 
-
-    # for sig in [signal.SIGHUP, signal.SIGINT, signal.SIGTERM]:
-    #     signal.signal(sig, signal_handler) # 各シグナルで終了するための設定
+    for sig in [signal.SIGHUP, signal.SIGINT, signal.SIGTERM]:
+        signal.signal(sig, signal_handler) # 各シグナルで終了するための設定
     atexit.register(clean)
-    result="" # 結果を格納する変数
+
+    for i, host in enumerate(hostname):
+        th.append(threading.Thread(target=ssh,args=(host,i,lock[i],),daemon=True))# ssh(host,i)という命令をスレッドを追加
+        th[i].start()# 実行
+
+    logger(f"Info : collector started (pid={os.getpid()}, hosts={len(hostname)}, rank={opt.rank})")
     while True:
         time.sleep(opt.interval) # 指定された時間待機
+        try:
+            result_lines=[]
+            now_mono = time.monotonic()
+            for i in range(0,len(hostname)): # 各端末ごとに最新スナップショットを取り出す
+                with lock[i]:
+                    if latest[i] and now_mono - latest_time[i] > stale_after:
+                        latest[i] = []
+                    snapshot = latest[i]
+                result_lines += [",".join(fields) for fields in snapshot]
 
-        for i in range(0,len(hostname)): # 各端末ごとにデータを取得
-            tmp = "".join([",".join(line) for line in firstdata[i]]) # firstdataを,と\nで連結
-            # print(tmp)
-            result=result+tmp # 出力データを収集
-            with lock[i]: # 出力エリアのロックを取得
-                firstdata[i]=[] # 改修した部分を初期化
+            if opt.rank:
+                user_time = calc_weekly_login(result_lines)
+                write_weekly_login(user_time, output_weekly_login_path)
 
-        # --- 修正ここから ---
-        all_lines = result.splitlines()
-        user_time = calc_weekly_login(all_lines)
-        if opt.rank:
-            write_weekly_login(user_time, output_weekly_login_path)
-        # --- 修正ここまで ---
-
-
-        # print(opt.detail)
-        if not opt.detail: # 詳細表示が指定されていた場合
-            result_out=[]
-            for r in result.splitlines(): # 結果を1行ずつ取得
-                result_out.append(r) # とりあえず出す
-            result="\n".join(result_out) # 結果を出力
-
-        result="Update Time : "+str(datetime.datetime.now())+"\n"+result # 時間を出しつつ，結果を表示
-        # print(result,flush=True) # 結果を表示
-        
-        with open(output_file_path, "w", encoding="utf-8") as f:
-            f.write(result)
-
-        result="" # 結果を格納する部分の初期化
-        if ppid!=int(os.getppid()): # ユーザーのSSH接続が切れた場合（何故かrootのsshdに持っていかれ，終了しないため，このように対処）
-            for p in proclist:
-                p.terminate() # プロセスを終了させる
-            sys.exit(0) # プロセスを終了
+            result="Update Time : "+now_str()+"\n" # 時間を出しつつ，結果を表示
+            if result_lines:
+                result += "\n".join(result_lines)+"\n"
+            write_atomic(output_file_path, result)
+        except Exception:
+            logger("Error-0x05 : "+traceback.format_exc()) # 書き込み失敗(NFS 一時障害など)で収集を止めない
 
 def logger(text:str):
-    with open(output_log_file_path, "a") as f:
-        f.write(f"[{datetime.datetime.now()}] {text}\n")
+    try:
+        with open(output_log_file_path, "a") as f:
+            f.write(f"[{now_str()}] {text}\n")
+    except Exception:
+        pass
 
 # main部分
 if opt.thread:
