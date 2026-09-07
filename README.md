@@ -41,7 +41,8 @@
 │   ├── careerscript        # 端末ログイン状況を収集するメインスクリプト
 │   ├── whonow              # 現在のログインユーザ確認スクリプト
 │   └── getNewestClassPlan  # 最新授業計画取得スクリプト
-└── chmodScript.sh          # Webサーバ用パーミッション設定スクリプト
+├── chmodScript.sh          # Webサーバ用パーミッション設定スクリプト
+└── githooks/               # git pull / checkout 後に chmodScript.sh を自動実行するフック
 ```
 
 ## 監視対象端末
@@ -128,13 +129,33 @@ t22cs001,03:32:03
 
 ## 使い方
 
-### パーミッション設定
+### パーミッション設定（初回と git pull のたびに必要）
 
-Webサーバにデプロイする前に実行します。
+Web サーバ (lww) は assist とは別のユーザで動きます。そのため、ブラウザや PHP が読むファイルは
+「他人が読める (644)」、その途中のディレクトリは「他人が通過できる (711)」になっていないと 403 になります。
+
+git は実行ビットしか記録しません。`git pull` で新しく作られたり書き換えられたファイルは、
+実行したユーザの umask（assist は 077）に従って 600 になるので、pull のたびに権限が壊れます。
+これを `chmodScript.sh` で戻します。
+
+| 対象 | 権限 | 理由 |
+|---|---|---|
+| `seat/` `css/` `js/` `php/` | 711 | Web サーバが通過できればよい。一覧表示は不要 |
+| `*.html` `*.json` `*.css` `js/*.js` `php/*.php` | 644 | ブラウザ・PHP が読む |
+| `seat_output.txt` `weekly_login_time.txt` | 644 | PHP と JS が読む。careerscript は既存の権限を引き継いで書き直すので一度直せば維持される |
+| `seat_log.txt` `cronlog.txt` `README.md` その他 | 600 | 公開しない（ログにはユーザ名が含まれる） |
+| `python/` とその中身 | 700 | assist が cron と ssh から実行するだけ |
+
+**初回だけ**、pull 後に自動で実行されるように git のフック先を設定します（clone ごとに 1 回）。
 
 ```bash
+cd ~/local_html/seat
+git config core.hooksPath githooks
 bash chmodScript.sh
 ```
+
+以後は `git pull` や `git checkout` の直後に `githooks/post-merge` / `githooks/post-checkout` が
+`chmodScript.sh` を呼ぶので、手で実行する必要はありません。手で直したいときは `bash chmodScript.sh` を実行します。
 
 ### データ収集スクリプトの起動（cron + flock）
 

@@ -1,0 +1,4 @@
+#!/bin/sh
+# git pull (= fetch + merge) の後に自動で実行され，公開用の権限を戻す．
+# 有効化は clone ごとに 1 回:  git config core.hooksPath githooks
+exec "$(git rev-parse --show-toplevel)/chmodScript.sh"
