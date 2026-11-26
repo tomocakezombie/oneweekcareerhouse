@@ -12,7 +12,7 @@
   --primary: #007bff;
   --success: #28a745;
 
-  --using: #343a40;          /* navbar の bg-dark と同色 */
+  --using: #6c757d;          /* Bootstrap の secondary (濃い灰色) */
   --free: #28a745;           /* Search ボタン (btn-outline-success) と同色 */
   --free-bg: #eaf6ec;
   --unknown: #ced4da;

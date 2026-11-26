@@ -51,6 +51,19 @@
 
     .floor[data-stale="true"] .seat { opacity: 0.45; }
 
+    /* 凡例 (左下) */
+    .legend {
+      display: flex;
+      gap: 16px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .legend i { width: 16px; height: 12px; display: inline-block; }
+    .legend .l-using { background: var(--using); border: 1px solid var(--using); }
+    .legend .l-free { background: var(--free-bg); border: 1px solid var(--free); }
+    .legend .l-unknown { background: var(--light); border: 1px dashed var(--unknown); }
+
     /* 端末を含まない行 (通路) */
     .aisle { grid-column: 1 / -1; height: 1.6cqi; }
   </style>
@@ -62,6 +75,11 @@
       <div class="floor" id="floor" aria-label="端末配置図">
         <div class="grid" id="grid" role="grid"></div>
       </div>
+    </div>
+    <div class="legend">
+      <span><i class="l-using"></i>使用中</span>
+      <span><i class="l-free"></i>空き</span>
+      <span><i class="l-unknown"></i>状態不明</span>
     </div>
   </div>
 
