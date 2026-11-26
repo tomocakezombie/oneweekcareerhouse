@@ -98,7 +98,7 @@
       });
   }
 
-  KKI.reportHeight("ranking");
+  KKI.fit("ranking", "width");
   tick();
   setInterval(tick, INTERVAL_MS);
 })();

@@ -121,7 +121,7 @@
       });
   }
 
-  KKI.reportHeight("seats");
+  KKI.fit("seats", "contain", 960);
   KKI.fetchFresh(LAYOUT_URL)
     .then((res) => res.json())
     .then((layout) => {

@@ -7,11 +7,8 @@
   <link rel="stylesheet" href="./css/embed.css">
   <style>
     /* ---------- フロアマップ ---------- */
-    .floor-wrap { overflow-x: auto; }
-    .floor {
-      container-type: inline-size;
-      min-width: 640px;
-    }
+    /* 幅 960px で組み，embed-common.js の KKI.fit で iframe に収める */
+    .floor { container-type: inline-size; }
     .grid {
       display: grid;
       gap: 2px;
@@ -22,7 +19,7 @@
       display: grid;
       place-items: center;
       font-family: var(--mono);
-      font-size: clamp(8px, 1.4cqi, 15px);
+      font-size: 1.4cqi;
       font-weight: 700;
       letter-spacing: -0.03em;
       user-select: none;

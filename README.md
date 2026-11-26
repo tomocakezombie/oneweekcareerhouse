@@ -70,24 +70,35 @@
 `php/data.php`・`seat_data.json`・`weekly_login_time.txt` をそのまま読みます。
 
 ```html
-<iframe src="https://lww.kki.yamanashi.ac.jp/~assist/seat/public/seats.html"   data-kki="seats" style="width:100%;height:420px;border:0"></iframe>
-<iframe src="https://lww.kki.yamanashi.ac.jp/~assist/seat/public/ranking.html" data-kki="ranking" style="width:100%;height:560px;border:0"></iframe>
+<iframe data-kki="seats" src="https://lww.kki.yamanashi.ac.jp/~assist/seat/public/seats.html"
+        title="端末の使用状況" scrolling="no" style="width:100%;aspect-ratio:12/5;border:0"></iframe>
+
+<iframe data-kki="ranking" src="https://lww.kki.yamanashi.ac.jp/~assist/seat/public/ranking.html"
+        title="週間ランキング" scrolling="no" style="width:100%;height:640px;border:0"></iframe>
 ```
 
 デザインは埋め込み先の KKI Living Guide（Bootstrap 4・白背景）に合わせてあり、背景は透過です。
+
+各ページは iframe の大きさに合わせて中身を自動で拡大・縮小するので、スクロールバーは出ません。
+
+- **seats.html**：配置図全体を縦横比を保って iframe に収めます。配置図の縦横比はおよそ 12:5 なので、
+  `width:100%; aspect-ratio:12/5` にすると余白なくぴったり収まります。
+- **ranking.html**：横幅は iframe いっぱいに使い、高さが足りないときだけ縮小します。
 
 | クエリ | 対象 | 意味 |
 |---|---|---|
 | `limit=N` | ranking | 表示人数（既定 10、3〜50） |
 
-高さを自動で合わせたい場合、各ページは `{source: "kki-embed", page: "seats" | "ranking", height}` を
-親ウィンドウへ `postMessage` するので、埋め込み側で受け取って iframe の高さに反映してください。
+iframe の高さまで中身に合わせたい場合は、埋め込み側で次のスクリプトを読み込みます（任意）。
+各ページは「今の幅でちょうどよい高さ」を `{source: "kki-embed", page: "seats" | "ranking", height}` として
+親ウィンドウへ `postMessage` します。
 
 ```js
 window.addEventListener("message", (e) => {
-  if (e.data && e.data.source === "kki-embed") {
-    document.querySelector(`iframe[data-kki="${e.data.page}"]`).style.height = e.data.height + "px";
-  }
+  if (e.origin !== location.origin) return;
+  if (!e.data || e.data.source !== "kki-embed") return;
+  const frame = document.querySelector(`iframe[data-kki="${e.data.page}"]`);
+  if (frame) frame.style.height = e.data.height + "px";
 });
 ```
 
