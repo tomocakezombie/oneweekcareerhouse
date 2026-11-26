@@ -12,10 +12,12 @@
 cd "$(dirname "$0")" || exit 1
 
 # --- ディレクトリ: 通過 (x) だけ許す．一覧 (r) は不要 ---
-chmod 711 . css js php
+chmod 711 . css js php public public/css public/js 2>/dev/null
 
 # --- ブラウザ・PHP が読む公開ファイル ---
 chmod 644 ./*.html ./*.json ./*.css css/*.css js/*.js php/*.php
+# iframe 埋め込み用ページ
+chmod 644 public/*.html public/css/*.css public/js/*.js 2>/dev/null
 # 収集スクリプトが生成するファイル (無ければ飛ばす)．careerscript は既存の権限を引き継いで書き直すので一度直せば維持される
 chmod 644 seat_output.txt weekly_login_time.txt 2>/dev/null
 

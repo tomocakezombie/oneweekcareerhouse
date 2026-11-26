@@ -33,6 +33,11 @@
 ├── css/                    # スタイルシート
 ├── js/
 │   └── script.js           # フロントエンドロジック
+├── public/                 # iframe 埋め込み用ページ（既存 UI とは独立）
+│   ├── seats.html          # 端末ごとの使用状況（フロアマップ）
+│   ├── ranking.html        # 週間利用ランキング
+│   ├── css/embed.css       # 2 ページ共通スタイル
+│   └── js/                 # embed-common.js / seats.js / ranking.js
 ├── php/
 │   ├── data.php            # 端末状況を返すAPI
 │   ├── getnewclass.php     # 授業予定取得
@@ -58,6 +63,33 @@
 | lw01〜lw12 / nw01〜nw12 | 各12台 |
 | mw01〜mw06 | 6台 |
 | zw01, zw03 | 2台（zw02はWindows端末のため除外） |
+
+## iframe 埋め込み
+
+`public/` 以下のページは他サイトに iframe で埋め込むための単体ページです。データは既存の
+`php/data.php`・`seat_data.json`・`weekly_login_time.txt` をそのまま読みます。
+
+```html
+<iframe src="https://<このサイト>/seat/public/seats.html"   style="width:100%;height:560px;border:0"></iframe>
+<iframe src="https://<このサイト>/seat/public/ranking.html" style="width:100%;height:720px;border:0"></iframe>
+```
+
+| クエリ | 対象 | 意味 |
+|---|---|---|
+| `theme=light` / `theme=dark` | 両方 | テーマを固定（省略時は閲覧者の OS 設定に従う） |
+| `bg=transparent` | 両方 | 背景を透過して埋め込み先の背景を見せる |
+| `limit=N` | ranking | 表示人数（既定 10、3〜50） |
+
+高さを自動で合わせたい場合、各ページは `{source: "kki-embed", page: "seats" | "ranking", height}` を
+親ウィンドウへ `postMessage` するので、埋め込み側で受け取って iframe の高さに反映してください。
+
+```js
+window.addEventListener("message", (e) => {
+  if (e.data && e.data.source === "kki-embed") {
+    document.querySelector(`iframe[data-kki="${e.data.page}"]`).style.height = e.data.height + "px";
+  }
+});
+```
 
 ## システム構成
 
