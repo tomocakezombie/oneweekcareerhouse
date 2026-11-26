@@ -70,8 +70,8 @@
 `php/data.php`・`seat_data.json`・`weekly_login_time.txt` をそのまま読みます。
 
 ```html
-<iframe src="https://<このサイト>/seat/public/seats.html"   data-kki="seats" style="width:100%;height:420px;border:0"></iframe>
-<iframe src="https://<このサイト>/seat/public/ranking.html" data-kki="ranking" style="width:100%;height:560px;border:0"></iframe>
+<iframe src="https://lww.kki.yamanashi.ac.jp/~assist/seat/public/seats.html"   data-kki="seats" style="width:100%;height:420px;border:0"></iframe>
+<iframe src="https://lww.kki.yamanashi.ac.jp/~assist/seat/public/ranking.html" data-kki="ranking" style="width:100%;height:560px;border:0"></iframe>
 ```
 
 デザインは埋め込み先の KKI Living Guide（Bootstrap 4・白背景）に合わせてあり、背景は透過です。
