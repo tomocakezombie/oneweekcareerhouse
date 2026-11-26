@@ -9,28 +9,35 @@
   const INTERVAL_MS = 5000;
   // 端末名の形式 (seat_data.json 内の凡例用の "使用" "空き" などを除外する)
   const TERMINAL_RE = /^[a-z]w\d{2}$/;
-  const RING_LEN = 2 * Math.PI * 27;
+  // 端末が 1 台もない列の幅 (端末列を 1 としたときの比率)
+  const EMPTY_COL_FR = 0.3;
 
   const $ = (id) => document.getElementById(id);
+  const isTerminal = (id) => typeof id === "string" && TERMINAL_RE.test(id);
   const seats = new Map(); // 端末名 -> 要素
   const states = new Map(); // 端末名 -> "using" | "free" | "unknown"
 
   function buildFloor(layout) {
     const grid = $("grid");
-    const cols = Math.max(...layout.map((r) => (Array.isArray(r) ? r.length : 0)));
-    grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+    const rows = layout.filter(Array.isArray);
+    const cols = Math.max(...rows.map((r) => r.length));
+
+    // 端末を含む列は 1fr，含まない列 (通路) は細くする
+    const colSizes = [];
+    for (let c = 0; c < cols; c++) {
+      const used = rows.some((r) => isTerminal(r[c]));
+      colSizes.push(used ? "minmax(0, 1fr)" : `minmax(0, ${EMPTY_COL_FR}fr)`);
+    }
+    grid.style.gridTemplateColumns = colSizes.join(" ");
 
     // 端末を含まない行が連続する部分は通路として 1 本にまとめる
     let inAisle = false;
-    layout.forEach((row) => {
-      const ids = Array.isArray(row) ? row : [];
-      const hasSeat = ids.some((id) => id && TERMINAL_RE.test(id));
-      if (!hasSeat) {
+    rows.forEach((ids) => {
+      if (!ids.some(isTerminal)) {
         if (!inAisle) {
           const aisle = document.createElement("div");
           aisle.className = "aisle";
           aisle.setAttribute("aria-hidden", "true");
-          aisle.textContent = "aisle";
           grid.appendChild(aisle);
         }
         inAisle = true;
@@ -41,7 +48,7 @@
       for (let c = 0; c < cols; c++) {
         const id = ids[c];
         const cell = document.createElement("div");
-        if (id && TERMINAL_RE.test(id)) {
+        if (isTerminal(id)) {
           cell.className = "seat";
           cell.dataset.state = "unknown";
           cell.tabIndex = 0;
@@ -56,18 +63,15 @@
         grid.appendChild(cell);
       }
     });
-    $("n-total").textContent = seats.size;
   }
 
   function parseData(json) {
     const list = Array.isArray(json) ? json : json.data || [];
-    const result = { isNew: false, updateTime: "", terminals: new Map() };
+    const result = { isNew: false, terminals: new Map() };
     list.forEach((obj) => {
       const key = Object.keys(obj)[0];
-      const val = obj[key];
-      if (key === "is_new_time") result.isNew = !!val;
-      else if (key === "update_time") result.updateTime = String(val);
-      else if (TERMINAL_RE.test(key)) result.terminals.set(key, !!val);
+      if (key === "is_new_time") result.isNew = !!obj[key];
+      else if (isTerminal(key)) result.terminals.set(key, !!obj[key]);
     });
     return result;
   }
@@ -79,14 +83,9 @@
   }
 
   function render(data, first) {
-    let using = 0;
-    let free = 0;
-
     seats.forEach((el, id) => {
       let next = "unknown";
       if (data.terminals.has(id)) next = data.terminals.get(id) ? "using" : "free";
-      if (next === "using") using++;
-      else if (next === "free") free++;
 
       const prev = states.get(id);
       if (prev === next) return;
@@ -102,27 +101,7 @@
       }
     });
 
-    $("n-using").textContent = using;
-    $("n-free").textContent = free;
-
-    // 使用率は配置図上の全端末数を分母にする
-    const rate = seats.size ? (using / seats.size) * 100 : 0;
-    $("rate").textContent = rate.toFixed(0);
-    $("ring-bar").style.strokeDashoffset = String(RING_LEN * (1 - Math.min(rate, 100) / 100));
-    $("ring").setAttribute("aria-label", `使用率 ${rate.toFixed(1)}%`);
-
-    let level, color;
-    if (rate > 60) { level = "混雑しています"; color = "var(--danger)"; }
-    else if (rate > 30) { level = "やや混雑"; color = "var(--warn)"; }
-    else { level = "空いています"; color = "var(--ok)"; }
-    $("level").textContent = level;
-    document.querySelector(".summary").style.setProperty("--level", color);
-
-    // update_time は "YYYY-MM-DDTHH:MM:SS.uuuuuu+09:00"
-    if (data.updateTime.length >= 19) $("updated").textContent = data.updateTime.slice(11, 19);
-
     $("floor").dataset.stale = String(!data.isNew);
-    $("live").dataset.state = data.isNew ? "ok" : "stale";
     setNotice(data.isNew ? "" : "座席情報が取得できていません。表示は最後に取得した状態です。");
   }
 
@@ -137,7 +116,6 @@
       })
       .catch((err) => {
         console.error(err);
-        $("live").dataset.state = "error";
         $("floor").dataset.stale = "true";
         setNotice("サーバに接続できません。再試行しています…", "error");
       });
@@ -153,7 +131,6 @@
     })
     .catch((err) => {
       console.error(err);
-      $("live").dataset.state = "error";
       setNotice("端末配置 (seat_data.json) を読み込めませんでした。", "error");
     });
 })();
