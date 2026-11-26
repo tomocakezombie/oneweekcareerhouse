@@ -6,8 +6,6 @@
   <title>KKI 端末状況</title>
   <link rel="stylesheet" href="./css/embed.css">
   <style>
-    .shell { padding: 8px; gap: 6px; }
-
     /* ---------- フロアマップ ---------- */
     .floor-wrap { overflow-x: auto; }
     .floor {
@@ -24,37 +22,37 @@
       display: grid;
       place-items: center;
       font-family: var(--mono);
-      font-size: clamp(8px, 1.45cqi, 16px);
+      font-size: clamp(8px, 1.4cqi, 15px);
       font-weight: 700;
       letter-spacing: -0.03em;
       user-select: none;
       cursor: default;
-      transition: background 0.4s, border-color 0.4s, color 0.4s;
+      transition: background-color 0.3s, border-color 0.3s, color 0.3s;
       border: 1px dashed var(--unknown);
-      color: var(--faint);
-      background: transparent;
+      background: var(--light);
+      color: #adb5bd;
     }
-    .seat:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .seat:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 
     .seat[data-state="free"] {
-      border: 1px solid var(--free-border);
+      border: 1px solid var(--free);
       background: var(--free-bg);
-      color: var(--free);
+      color: #1e7e34;
     }
     .seat[data-state="using"] {
-      border: 1px solid var(--using-2);
+      border: 1px solid var(--using);
       background: var(--using);
-      color: #1a0a00;
+      color: #fff;
     }
 
     /* 状態が変わった瞬間のフラッシュ */
     .seat.changed { animation: flash 1s ease-out; }
     @keyframes flash {
-      0%   { outline: 2px solid var(--accent); outline-offset: 2px; }
-      100% { outline: 2px solid transparent; outline-offset: 6px; }
+      0%   { outline: 2px solid var(--primary); outline-offset: 2px; }
+      100% { outline: 2px solid transparent; outline-offset: 5px; }
     }
 
-    .floor[data-stale="true"] .seat { filter: grayscale(0.85); opacity: 0.55; }
+    .floor[data-stale="true"] .seat { opacity: 0.45; }
 
     /* 端末を含まない行 (通路) */
     .aisle { grid-column: 1 / -1; height: 1.6cqi; }

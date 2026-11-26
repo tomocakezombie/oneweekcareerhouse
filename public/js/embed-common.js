@@ -1,16 +1,9 @@
 // iframe 埋め込み用ページの共通処理
-//  - ?theme=light|dark でテーマ固定 (省略時は OS 設定)
-//  - ?bg=transparent で背景を透過
 //  - 親ウィンドウへ自分の高さを postMessage で通知 (iframe の高さ自動調整用)
 (function () {
   "use strict";
 
   const params = new URLSearchParams(location.search);
-  const root = document.documentElement;
-
-  const theme = params.get("theme");
-  if (theme === "light" || theme === "dark") root.dataset.theme = theme;
-  if (params.get("bg") === "transparent") root.dataset.bg = "transparent";
 
   // キャッシュを避けて取得する
   function fetchFresh(url) {
@@ -25,7 +18,7 @@
   //   親側の例:
   //   window.addEventListener("message", (e) => {
   //     if (e.data && e.data.source === "kki-embed") {
-  //       document.getElementById(e.data.page).style.height = e.data.height + "px";
+  //       document.querySelector(`iframe[data-kki="${e.data.page}"]`).style.height = e.data.height + "px";
   //     }
   //   });
   function reportHeight(page) {

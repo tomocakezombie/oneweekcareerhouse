@@ -11,10 +11,6 @@
   const $ = (id) => document.getElementById(id);
   let lastText = null;
 
-  const CROWN =
-    '<svg class="crown" viewBox="0 0 24 16" fill="currentColor" aria-hidden="true">' +
-    '<path d="M2 14h20l1-11-6 5-5-7-5 7-6-5z"/></svg>';
-
   function parse(text) {
     return text
       .split("\n")
@@ -45,79 +41,50 @@
     return e;
   }
 
-  function renderPodium(top) {
-    const podium = $("podium");
-    podium.replaceChildren();
-    for (let i = 0; i < 3; i++) {
-      const u = top[i];
-      const card = el("article", `podium-card r${i + 1}`);
-      const medal = el("div", "medal", String(i + 1));
-      if (i === 0) medal.insertAdjacentHTML("afterbegin", CROWN);
-      card.appendChild(medal);
-      card.appendChild(el("div", "podium-name", u ? u.name : "—"));
-      const t = el("div", "podium-time");
-      if (u) {
-        t.appendChild(el("b", null, humanize(u.seconds)));
-        t.appendChild(document.createElement("br"));
-        t.appendChild(document.createTextNode(u.time));
-      } else {
-        t.textContent = "記録なし";
-      }
-      card.appendChild(t);
-      card.setAttribute("aria-label", u ? `${i + 1} 位 ${u.name} ${u.time}` : `${i + 1} 位 記録なし`);
-      podium.appendChild(card);
-    }
-  }
-
-  function renderList(users, max) {
+  function render(text) {
+    const users = parse(text).slice(0, limit);
+    const max = users.length ? users[0].seconds : 0;
     const list = $("list");
     list.replaceChildren();
-    for (let i = 3; i < limit; i++) {
-      const u = users[i];
-      const li = el("li", "row" + (u ? "" : " empty"));
-      li.style.animationDelay = `${(i - 3) * 0.04}s`;
-      li.appendChild(el("div", "rank", String(i + 1)));
 
-      const who = el("div", "who");
+    for (let i = 0; i < limit; i++) {
+      const u = users[i];
+      const tr = el("tr", (i < 3 ? `r${i + 1}` : "") + (u ? "" : " empty"));
+
+      const rank = el("td", "col-rank");
+      rank.appendChild(el("span", "badge", String(i + 1)));
+      tr.appendChild(rank);
+
+      const who = el("td");
       who.appendChild(el("div", "name", u ? u.name : "—"));
-      const bar = el("div", "bar");
+      const bar = el("div", "progress");
       const fill = el("i");
       bar.appendChild(fill);
       who.appendChild(bar);
-      li.appendChild(who);
+      tr.appendChild(who);
 
-      const time = el("div", "time");
+      const time = el("td", "col-time time");
       if (u) {
         time.appendChild(document.createTextNode(humanize(u.seconds)));
         time.appendChild(el("small", null, u.time));
       } else {
         time.textContent = "—";
       }
-      li.appendChild(time);
-      list.appendChild(li);
+      tr.appendChild(time);
+      list.appendChild(tr);
 
       // 描画後に幅を入れてバーを伸ばす
-      const w = u && max > 0 ? (u.seconds / max) * 100 : 0;
-      requestAnimationFrame(() => fill.style.setProperty("--w", `${Math.max(w, u ? 2 : 0)}%`));
+      const w = u && max > 0 ? Math.max((u.seconds / max) * 100, 2) : 0;
+      requestAnimationFrame(() => fill.style.setProperty("--w", `${w}%`));
     }
-    if (limit <= 3) list.parentElement.hidden = true;
-  }
-
-  function render(text) {
-    const users = parse(text).slice(0, limit);
-    const max = users.length ? users[0].seconds : 0;
-    renderPodium(users);
-    renderList(users, max);
   }
 
   function tick() {
     KKI.fetchFresh(DATA_URL)
       .then((res) => res.text())
       .then((text) => {
-        $("live").dataset.state = "ok";
         $("notice").className = "notice error";
-        const now = new Date();
-        $("updated").textContent = now.toTimeString().slice(0, 8);
+        $("updated").textContent = new Date().toTimeString().slice(0, 8);
         // 内容が変わったときだけ描き直す (5 秒ごとのちらつき防止)
         if (text === lastText) return;
         lastText = text;
@@ -125,7 +92,6 @@
       })
       .catch((err) => {
         console.error(err);
-        $("live").dataset.state = "error";
         $("notice").textContent = "ランキングを取得できません。再試行しています…";
         $("notice").className = "notice error show";
         if (lastText === null) render("");
